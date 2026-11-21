@@ -423,7 +423,7 @@ export default function Login({
 
   return (
     <div
-      className={`min-h-screen grid grid-cols-1 lg:grid-cols-12 ${
+      className={`min-h-screen grid grid-cols-1 lg:grid-cols-12 overflow-x-hidden w-full ${
         isDark ? 'bg-[#051226] text-[#e0f7fa]' : 'bg-[#f0f9ff] text-[#051226]'
       } selection:bg-[#4dd0e1] selection:text-[#051226] font-sans antialiased`}
     >

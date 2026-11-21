@@ -11,6 +11,7 @@ import {
   Clock,
   Wind,
   Pill,
+  Droplets,
   Timer,
   AlertCircle,
   ArrowRight,
@@ -549,7 +550,7 @@ export default function Dashboard({
 
   return (
     <div
-      className={`min-h-screen ${bgMain} ${textMain} font-sans antialiased selection:bg-[#4dd0e1] selection:text-[#051226] relative flex flex-col lg:flex-row`}
+      className={`min-h-screen ${bgMain} ${textMain} font-sans antialiased selection:bg-[#4dd0e1] selection:text-[#051226] relative flex flex-col lg:flex-row overflow-x-hidden w-full`}
     >
       {/* Ambient background glow */}
       <div
@@ -733,7 +734,7 @@ export default function Dashboard({
       {/* 2. AREA KONTEN UTAMA                                         */}
       {/* ============================================================ */}
       <div className="flex-1 lg:pl-64 flex flex-col min-h-screen">
-        {/* Top Navbar Mobile */}
+        {/* Top Navbar Mobile & Tablet */}
         <header
           className={`lg:hidden sticky top-0 z-30 px-4 py-3 flex items-center justify-between backdrop-blur-xl border-b ${
             isDark
@@ -752,10 +753,29 @@ export default function Dashboard({
             >
               {userRole === 'pasien' ? 'Pasien' : 'Pendamping'}
             </span>
+
+            {/* Toggle Theme Mobile */}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className={`p-2 rounded-xl border text-xs cursor-pointer transition-colors ${
+                isDark
+                  ? 'bg-white/5 border-white/10 text-amber-300 hover:bg-white/10'
+                  : 'bg-slate-100 border-slate-300 text-[#051226] hover:bg-slate-200'
+              }`}
+              title={isDark ? 'Mode Terang' : 'Mode Gelap'}
+            >
+              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4 text-[#051226]" />}
+            </button>
+
+            {/* Tombol Keluar Mobile */}
             <button
               type="button"
               onClick={() => setShowLogoutModal(true)}
-              className="p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 cursor-pointer"
+              className={`p-2 rounded-xl border text-red-500 hover:bg-red-500/10 cursor-pointer transition-colors ${
+                isDark ? 'border-red-500/25' : 'border-red-200'
+              }`}
+              title="Keluar"
             >
               <LogOut className="w-4 h-4" />
             </button>
@@ -763,7 +783,7 @@ export default function Dashboard({
         </header>
 
         {/* Konten Tab */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto pb-24 lg:pb-8">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto pb-28 lg:pb-8">
           {/* ==================================================== */}
           {/* TAB 1: JADWAL / PANTAUAN UTAMA                       */}
           {/* ==================================================== */}
@@ -856,7 +876,7 @@ export default function Dashboard({
                   </div>
 
                   {/* 4 Kartu Statistik Pasien (0 untuk Akun Baru) */}
-                  <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {[
                       {
                         label: 'Jadwal Hari Ini',
@@ -1121,7 +1141,7 @@ export default function Dashboard({
                         className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-[#0d47a1] font-bold text-xs sm:text-sm flex items-center gap-2 shadow-lg transition-all cursor-pointer"
                       >
                         <Plus className="w-4 h-4" />
-                        <span>+ Tambah Obat Pasien</span>
+                        <span>Tambah Obat Pasien</span>
                       </button>
 
                       {/* Telepon Pasien */}
@@ -1204,7 +1224,7 @@ export default function Dashboard({
                             isDark ? 'text-slate-400' : 'text-slate-600 font-medium'
                           }`}
                         >
-                          Belum ada jadwal obat untuk pasien ini. Klik tombol + Tambah Obat untuk
+                          Belum ada jadwal obat untuk pasien ini. Klik tombol Tambah Obat untuk
                           membuat jadwal pertama.
                         </p>
                         <button
@@ -1213,7 +1233,7 @@ export default function Dashboard({
                           className={`inline-flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm cursor-pointer shadow-lg ${btnPrimary}`}
                         >
                           <Plus className="w-4 h-4" />
-                          <span>+ Tambah Obat Pertama</span>
+                          <span>Tambah Obat Pertama</span>
                         </button>
                       </div>
                     ) : (
@@ -1387,25 +1407,91 @@ export default function Dashboard({
                   >
                     Bentuk Sediaan Obat
                   </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {['Inhaler', 'Oral', 'Sirup'].map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => setNewMed({ ...newMed, type: t })}
-                        className={`py-3 px-3 rounded-xl border text-sm font-semibold transition-all duration-200 cursor-pointer ${
-                          newMed.type === t
-                            ? isDark
-                              ? 'bg-[#4dd0e1] text-[#051226] border-[#4dd0e1] font-bold shadow-md'
-                              : 'bg-[#0d47a1] text-white border-[#0d47a1] font-bold shadow-sm'
-                            : isDark
-                            ? 'border-white/10 text-slate-300 hover:bg-white/5'
-                            : 'border-slate-300 text-slate-700 hover:bg-slate-100'
-                        }`}
-                      >
-                        {t}
-                      </button>
-                    ))}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {[
+                      {
+                        type: 'Inhaler',
+                        label: 'Inhaler',
+                        sub: 'Semprot / Hirup',
+                        icon: Wind,
+                      },
+                      {
+                        type: 'Oral',
+                        label: 'Oral',
+                        sub: 'Tablet / Kapsul',
+                        icon: Pill,
+                      },
+                      {
+                        type: 'Sirup',
+                        label: 'Sirup',
+                        sub: 'Cairan / Takar ml',
+                        icon: Droplets,
+                      },
+                    ].map((s) => {
+                      const Icon = s.icon;
+                      const isSelected = newMed.type === s.type;
+                      return (
+                        <button
+                          key={s.type}
+                          type="button"
+                          onClick={() => setNewMed({ ...newMed, type: s.type })}
+                          className={`p-3.5 rounded-2xl border text-left transition-all duration-200 cursor-pointer flex flex-col justify-between gap-2.5 ${
+                            isSelected
+                              ? isDark
+                                ? 'border-2 border-[#00acc1] bg-[#00acc1]/15 text-white shadow-lg shadow-[#00acc1]/20'
+                                : 'border-2 border-[#0d47a1] bg-[#0d47a1]/10 text-[#0d47a1] shadow-md shadow-[#0d47a1]/15'
+                              : isDark
+                              ? 'border-white/10 bg-white/5 text-slate-300 hover:border-white/20 hover:bg-white/10'
+                              : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-slate-100'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <div
+                              className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+                                isSelected
+                                  ? isDark
+                                    ? 'bg-[#4dd0e1] text-[#051226]'
+                                    : 'bg-[#0d47a1] text-white'
+                                  : isDark
+                                  ? 'bg-white/10 text-[#4dd0e1]'
+                                  : 'bg-white text-[#0d47a1] border border-slate-200'
+                              }`}
+                            >
+                              <Icon className="w-5 h-5 stroke-[2.2]" />
+                            </div>
+                            {isSelected && (
+                              <span
+                                className={`w-2 h-2 rounded-full ${
+                                  isDark ? 'bg-[#4dd0e1]' : 'bg-[#0d47a1]'
+                                } animate-pulse`}
+                              />
+                            )}
+                          </div>
+                          <div>
+                            <p
+                              className={`font-bold text-sm ${
+                                isSelected ? (isDark ? 'text-white' : 'text-[#0d47a1]') : ''
+                              }`}
+                            >
+                              {s.label}
+                            </p>
+                            <p
+                              className={`text-[11px] leading-tight mt-0.5 ${
+                                isSelected
+                                  ? isDark
+                                    ? 'text-[#4dd0e1] font-medium'
+                                    : 'text-[#0d47a1] font-semibold'
+                                  : isDark
+                                  ? 'text-slate-400'
+                                  : 'text-slate-500'
+                              }`}
+                            >
+                              {s.sub}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -1418,13 +1504,21 @@ export default function Dashboard({
                     >
                       Waktu Minum (WIB)
                     </label>
-                    <input
-                      type="time"
-                      required
-                      value={newMed.time}
-                      onChange={(e) => setNewMed({ ...newMed, time: e.target.value })}
-                      className={`w-full py-3 px-4 rounded-xl text-sm font-medium focus:outline-none transition-all ${inputBg}`}
-                    />
+                    <div className="relative">
+                      <input
+                        type="time"
+                        required
+                        value={newMed.time}
+                        onChange={(e) => setNewMed({ ...newMed, time: e.target.value })}
+                        style={{ colorScheme: isDark ? 'dark' : 'light' }}
+                        className={`w-full py-3 px-4 pr-10 rounded-xl text-sm font-medium focus:outline-none transition-all dark:[&::-webkit-calendar-picker-indicator]:invert dark:[&::-webkit-calendar-picker-indicator]:brightness-200 [&::-webkit-calendar-picker-indicator]:cursor-pointer ${inputBg}`}
+                      />
+                      <Clock
+                        className={`w-4 h-4 pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 ${
+                          isDark ? 'text-[#4dd0e1]' : 'text-[#0d47a1]'
+                        }`}
+                      />
+                    </div>
                   </div>
 
                   <div>
@@ -1512,9 +1606,10 @@ export default function Dashboard({
                   )}
                   <button
                     type="submit"
-                    className={`flex-1 py-3.5 px-4 rounded-xl text-base font-bold transition-all cursor-pointer shadow-lg ${btnPrimary}`}
+                    className={`flex-1 py-3.5 px-4 rounded-xl text-base font-bold transition-all cursor-pointer shadow-lg flex items-center justify-center gap-2 ${btnPrimary}`}
                   >
-                    {editingMedId ? 'Simpan Perubahan Jadwal' : '+ Tambahkan ke Jadwal Pasien'}
+                    <Plus className="w-5 h-5" />
+                    <span>{editingMedId ? 'Simpan Perubahan Jadwal' : 'Tambahkan ke Jadwal Pasien'}</span>
                   </button>
                 </div>
               </form>
@@ -1825,7 +1920,7 @@ export default function Dashboard({
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {/* FORM DATA PASIEN */}
                 <form
                   onSubmit={handleSaveProfileByPendamping}
@@ -2518,6 +2613,42 @@ export default function Dashboard({
           </div>
         </div>
       )}
+      {/* ============================================================ */}
+      {/* 8. BOTTOM NAVIGATION BAR UNTUK MOBILE & TABLET (< lg)         */}
+      {/* ============================================================ */}
+      <nav
+        className={`lg:hidden fixed bottom-0 inset-x-0 z-40 px-2 py-1.5 backdrop-blur-xl border-t flex items-center justify-around shadow-2xl ${
+          isDark
+            ? 'bg-[#051226]/95 border-[#00acc1]/20 text-[#e0f7fa]'
+            : 'bg-white/95 border-slate-200 text-[#051226]'
+        }`}
+      >
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setActiveTab(item.id)}
+              className={`flex-1 min-h-[48px] py-1 px-1 flex flex-col items-center justify-center gap-1 rounded-xl transition-all cursor-pointer ${
+                isActive
+                  ? isDark
+                    ? 'text-[#4dd0e1] font-bold bg-[#4dd0e1]/10'
+                    : 'text-[#0d47a1] font-bold bg-[#0d47a1]/10'
+                  : isDark
+                  ? 'text-slate-400 hover:text-white'
+                  : 'text-slate-500 hover:text-[#051226]'
+              }`}
+            >
+              <Icon className={`w-5 h-5 ${isActive ? 'scale-110' : ''} transition-transform`} />
+              <span className="text-[10px] tracking-tight truncate max-w-[64px] text-center">
+                {item.label}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
     </div>
   );
 }
