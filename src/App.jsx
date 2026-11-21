@@ -50,7 +50,37 @@ import {
   AlertTriangle,
   Copy,
   Share2,
+  Edit3,
+  Trash2,
 } from 'lucide-react';
+
+// ==========================================================
+// UNIFIED RESPICARE LOGO COMPONENT
+// ==========================================================
+export function RespiCareLogo({ isDark, onClick, size = 'default' }) {
+  const isSmall = size === 'sm';
+  return (
+    <div
+      onClick={onClick}
+      className={`flex items-center gap-2.5 ${onClick ? 'cursor-pointer' : ''}`}
+    >
+      <div
+        className={`${
+          isSmall ? 'w-8 h-8 rounded-xl' : 'w-10 h-10 rounded-xl'
+        } bg-gradient-to-br from-[#0d47a1] to-[#1976d2] text-[#e0f7fa] border border-[#4dd0e1]/30 flex items-center justify-center shadow-inner shrink-0`}
+      >
+        <HeartPulse className={`${isSmall ? 'w-4 h-4' : 'w-5 h-5'} stroke-[2.2]`} />
+      </div>
+      <span
+        className={`font-extrabold tracking-tight font-sans ${
+          isSmall ? 'text-lg' : 'text-xl'
+        } ${isDark ? 'text-white' : 'text-[#051226]'}`}
+      >
+        Respi<span className={isDark ? 'text-[#4dd0e1]' : 'text-[#0d47a1]'}>Care</span>
+      </span>
+    </div>
+  );
+}
 
 // ==========================================================
 // WEB AUDIO API GENTLE REMINDER CHIME ENGINE
@@ -98,7 +128,7 @@ export default function App() {
   // TOP-LEVEL VIEW ROUTING: 'landing' | 'login' | 'dashboard'
   // Disetel default 'dashboard' atau 'login' agar langsung aktif
   // ==========================================================
-  const [currentView, setCurrentView] = useState('login');
+  const [currentView, setCurrentView] = useState('landing');
 
   // Peran Pengguna Aktif: 'pasien' | 'pendamping'
   const [userRole, setUserRole] = useState('pasien');
@@ -142,11 +172,138 @@ export default function App() {
 
   // Login Form State
   const [loginForm, setLoginForm] = useState({
-    email: 'sendyi0110@gmail.com',
-    password: 'password123',
-    rememberMe: true,
+    email: '',
+    password: '',
+    rememberMe: false,
   });
   const [showPassword, setShowPassword] = useState(false);
+
+  // ============================================================
+  // REGISTER FORM STATE & LOGIC
+  // ============================================================
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [registerForm, setRegisterForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    phone: '',
+    pairingCode: '',
+  });
+  const [registerRole, setRegisterRole] = useState('pasien');
+  const [registerError, setRegisterError] = useState('');
+  const [registerSuccess, setRegisterSuccess] = useState('');
+
+  // Load registered accounts from localStorage
+  const [registeredAccounts, setRegisteredAccounts] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('respicare-accounts') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  // Persist registered accounts to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('respicare-accounts', JSON.stringify(registeredAccounts));
+  }, [registeredAccounts]);
+
+  const handleRegisterSubmit = (e) => {
+    e.preventDefault();
+    setRegisterError('');
+    setRegisterSuccess('');
+
+    const { name, email, password, phone, pairingCode } = registerForm;
+    if (!name.trim() || !email.trim() || !password.trim() || !phone.trim()) {
+      setRegisterError('Semua field wajib diisi.');
+      return;
+    }
+    if (password.length < 6) {
+      setRegisterError('Kata sandi minimal 6 karakter.');
+      return;
+    }
+
+    // Cek email sudah terdaftar
+    const demoEmail = 'sendyi0110@gmail.com';
+    const allEmails = [demoEmail, ...registeredAccounts.map((a) => a.email)];
+    if (allEmails.includes(email.trim().toLowerCase())) {
+      setRegisterError('Email ini sudah terdaftar. Silakan login atau gunakan email lain.');
+      return;
+    }
+
+    if (registerRole === 'pendamping') {
+      // Validasi kode pairing: harus cocok dengan pasien yang ada
+      const demoRm = profile.rm.toUpperCase();
+      const demoPin = '8492';
+      const inputCode = pairingCode.trim().toUpperCase();
+      const matchDemoPatient =
+        inputCode === demoRm || inputCode === demoPin;
+      const matchRegisteredPatient = registeredAccounts.some(
+        (a) =>
+          a.role === 'pasien' &&
+          (inputCode === a.rm.toUpperCase() || inputCode === (a.pin || ''))
+      );
+
+      if (!pairingCode.trim()) {
+        setRegisterError('Kode Pairing Pasien wajib diisi untuk Pendamping Keluarga.');
+        return;
+      }
+      if (!matchDemoPatient && !matchRegisteredPatient) {
+        setRegisterError(
+          `Kode "${pairingCode}" tidak ditemukan. Minta No. RM atau PIN dari pasien yang ingin Anda pantau.`
+        );
+        return;
+      }
+    }
+
+    // Generate RM unik untuk Pasien baru
+    const newRm =
+      registerRole === 'pasien'
+        ? `RM-2026-${Math.floor(Math.random() * 900 + 100)}`
+        : null;
+    const newPin =
+      registerRole === 'pasien'
+        ? String(Math.floor(Math.random() * 9000 + 1000))
+        : null;
+
+    const newAccount = {
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      password,
+      phone: phone.trim(),
+      role: registerRole,
+      rm: newRm,
+      pin: newPin,
+      pairingCode: registerRole === 'pendamping' ? pairingCode.trim() : null,
+      createdAt: new Date().toISOString(),
+    };
+
+    setRegisteredAccounts((prev) => [...prev, newAccount]);
+    setRegisterSuccess(
+      registerRole === 'pasien'
+        ? `✓ Akun berhasil dibuat! No. RM Anda: ${newRm} • PIN: ${newPin}. Simpan kode ini untuk diberikan ke keluarga.`
+        : `✓ Akun Pendamping berhasil dibuat! Anda dapat login dan memantau pasien.`
+    );
+
+    // Pre-fill email di form login
+    setLoginForm((prev) => ({ ...prev, email: email.trim().toLowerCase() }));
+
+    setTimeout(() => {
+      setIsRegisterMode(false);
+      setRegisterForm({ name: '', email: '', password: '', phone: '', pairingCode: '' });
+      setRegisterSuccess('');
+      setRegisterError('');
+    }, 3500);
+  };
+
+  const handleDemoLogin = () => {
+    setLoginRole('pasien');
+    setLoginForm({ email: 'sendyi0110@gmail.com', password: 'password123', rememberMe: false });
+    // Langsung login
+    setUserRole('pasien');
+    setCurrentView('dashboard');
+    setActiveTab('jadwal');
+    setToastMessage(`Selamat Datang (Demo), ${profile.name}! 👋`);
+  };
 
   // State untuk Validasi Kode Pairing Pendamping Keluarga
   const [pairingCode, setPairingCode] = useState('');
@@ -225,7 +382,8 @@ export default function App() {
     },
   ]);
 
-  // Form Tambah Obat Baru (Tab 'tambah')
+  // Form Tambah / Edit Obat (Tab 'tambah')
+  const [editingMedId, setEditingMedId] = useState(null);
   const [newMed, setNewMed] = useState({
     name: '',
     type: 'Inhaler',
@@ -235,6 +393,40 @@ export default function App() {
     syrupVolume: 60,
     syrupDose: 5,
   });
+
+  const handleEditMedication = (med) => {
+    setEditingMedId(med.id);
+    setNewMed({
+      name: med.name,
+      type: med.type,
+      time: med.time,
+      stock: med.stock,
+      dosePerTake: med.dosePerTake || (med.type === 'Inhaler' ? 2 : med.type === 'Sirup' ? 5 : 1),
+      syrupVolume: med.type === 'Sirup' ? med.stock : 60,
+      syrupDose: med.type === 'Sirup' ? (med.dosePerTake || 5) : 5,
+    });
+    setActiveTab('tambah');
+  };
+
+  const handleDeleteMedication = (medId) => {
+    const medToDelete = schedules.find((s) => s.id === medId);
+    setSchedules((prev) => prev.filter((item) => item.id !== medId));
+    setToastMessage(`🗑️ Jadwal "${medToDelete?.name || 'Obat'}" berhasil dihapus.`);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMedId(null);
+    setNewMed({
+      name: '',
+      type: 'Inhaler',
+      time: '18:00',
+      stock: 40,
+      dosePerTake: 2,
+      syrupVolume: 60,
+      syrupDose: 5,
+    });
+    setActiveTab('jadwal');
+  };
 
   // Modal 30-Second Video Validation State
   const [activeMedication, setActiveMedication] = useState(null);
@@ -481,7 +673,30 @@ export default function App() {
           : ['Siapkan Air Putih', 'Minum Sesudah Makan', 'Telan Utuh'],
     };
 
-    setSchedules((prev) => [...prev, medToAdd]);
+    if (editingMedId) {
+      setSchedules((prev) =>
+        prev.map((item) =>
+          item.id === editingMedId
+            ? {
+                ...item,
+                name: newMed.name.trim(),
+                type: newMed.type,
+                time: newMed.time || '18:00',
+                stock: stockVal,
+                dosePerTake: doseVal,
+                unit: unitVal,
+                instructions: medToAdd.instructions,
+                steps: medToAdd.steps,
+              }
+            : item
+        )
+      );
+      setEditingMedId(null);
+      setToastMessage(`✓ Jadwal "${newMed.name.trim()}" berhasil diperbarui!`);
+    } else {
+      setSchedules((prev) => [...prev, medToAdd]);
+      setToastMessage(`✓ Jadwal "${medToAdd.name}" (${doseVal} ${unitVal}/kali) berhasil disimpan!`);
+    }
     setNewMed({
       name: '',
       type: 'Inhaler',
@@ -492,7 +707,6 @@ export default function App() {
       syrupDose: 5,
     });
     setActiveTab('jadwal');
-    setToastMessage(`✓ Jadwal "${medToAdd.name}" (${doseVal} ${unitVal}/kali) berhasil disimpan!`);
   };
 
   const handleSaveProfile = (e) => {
@@ -513,14 +727,39 @@ export default function App() {
   const handleLoginSubmit = (e) => {
     if (e) e.preventDefault();
 
+    // Validasi akun: cek demo hardcode ATAU akun dari localStorage
+    const demoEmail = 'sendyi0110@gmail.com';
+    const demoPassword = 'password123';
+    const inputEmail = loginForm.email.trim().toLowerCase();
+    const inputPassword = loginForm.password;
+
+    const isDemoUser = inputEmail === demoEmail && inputPassword === demoPassword;
+    const registeredUser = registeredAccounts.find(
+      (a) => a.email === inputEmail && a.password === inputPassword
+    );
+
+    if (!isDemoUser && !registeredUser) {
+      setPairingError('');
+      setToastMessage('❌ Email atau kata sandi tidak sesuai. Periksa kembali atau daftar akun baru.');
+      return;
+    }
+
+    // Jika akun ditemukan, ambil role-nya (kecuali demo hardcode yang bisa pilih role)
+    const resolvedRole = registeredUser ? registeredUser.role : loginRole;
+
     // Validasi Kode Pairing Pasien khusus untuk Pendamping Keluarga
-    if (loginRole === 'pendamping') {
+    if (resolvedRole === 'pendamping') {
       const code = pairingCode.trim().toUpperCase();
       if (!code) {
         setPairingError('Kode Pairing Pasien / No. Rekam Medis wajib diisi.');
         return;
       }
-      if (code !== profile.rm.toUpperCase() && code !== '8492') {
+      const demoRmUpper = profile.rm.toUpperCase();
+      const matchDemoPatient = code === demoRmUpper || code === '8492';
+      const matchRegisteredPatient = registeredAccounts.some(
+        (a) => a.role === 'pasien' && (code === (a.rm || '').toUpperCase() || code === (a.pin || ''))
+      );
+      if (!matchDemoPatient && !matchRegisteredPatient) {
         setPairingError(
           `Kode "${pairingCode}" tidak terdaftar. Masukkan No. RM pasien yang sesuai (contoh: ${profile.rm}) atau PIN 8492.`
         );
@@ -529,12 +768,14 @@ export default function App() {
       setPairingError('');
     }
 
-    setUserRole(loginRole);
+    setUserRole(resolvedRole);
     setCurrentView('dashboard');
     setActiveTab('jadwal');
     setToastMessage(
       `Selamat Datang, ${
-        loginRole === 'pasien' ? profile.name : 'Pendamping Keluarga'
+        resolvedRole === 'pasien'
+          ? registeredUser?.name || profile.name
+          : 'Pendamping Keluarga'
       }! 👋`
     );
   };
@@ -631,12 +872,12 @@ export default function App() {
     userRole === 'pasien'
       ? [
           { id: 'jadwal', label: 'Jadwal Terapi', icon: Calendar },
-          { id: 'tambah', label: 'Atur Jadwal Baru', icon: Plus },
           { id: 'laporan', label: 'Laporan Kepatuhan', icon: BarChart3 },
           { id: 'akun', label: 'Profil & Medis', icon: User },
         ]
       : [
           { id: 'jadwal', label: 'Pantauan Pasien', icon: Calendar },
+          { id: 'tambah', label: 'Atur Jadwal Obat', icon: Plus },
           { id: 'kontak', label: 'Telepon Pasien', icon: PhoneCall },
           { id: 'laporan', label: 'Laporan Pasien', icon: BarChart3 },
           { id: 'akun', label: 'Data Pasien & Akses', icon: User },
@@ -689,7 +930,7 @@ export default function App() {
         {/* KOLOM KIRI (lg:col-span-7) — TAMPIL DI DESKTOP               */}
         {/* ============================================================ */}
         <div
-          className="hidden lg:flex lg:col-span-7 flex-col justify-between p-8 xl:p-14 relative overflow-hidden"
+          className="hidden lg:flex lg:col-span-7 flex-col justify-between p-8 xl:p-14 relative overflow-hidden lg:sticky lg:top-0 lg:h-screen"
           style={{
             background: isDark
               ? 'radial-gradient(ellipse 80% 65% at 10% 90%, rgba(0, 172, 193, 0.22) 0%, rgba(25, 118, 210, 0.16) 40%, rgba(13, 71, 161, 0.10) 70%, transparent 85%), radial-gradient(ellipse 55% 45% at 85% 15%, rgba(77, 208, 225, 0.12) 0%, transparent 60%)'
@@ -872,29 +1113,160 @@ export default function App() {
           </div>
 
           <div className="w-full max-w-sm mx-auto space-y-6">
-            {/* Header Form */}
-            <div>
-              <div className="flex items-center gap-2.5 mb-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0d47a1] to-[#1976d2] text-white border border-[#4dd0e1]/30 flex items-center justify-center shadow-inner">
-                  <HeartPulse className="w-5 h-5 stroke-[2.2]" />
+            {/* ======================================================== */}
+            {/* MODE: REGISTER FORM                                       */}
+            {/* ======================================================== */}
+            {isRegisterMode ? (
+              <div className="space-y-5">
+                {/* Header Register */}
+                <div>
+                  <div className="mb-3">
+                    <RespiCareLogo isDark={isDark} />
+                  </div>
+                  <h2 className={`text-2xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-[#051226]'}`}>
+                    Buat Akun Baru
+                  </h2>
+                  <p className={`text-sm mt-1 leading-snug ${isDark ? 'text-slate-400' : 'text-slate-600 font-medium'}`}>
+                    Daftar sebagai Pasien atau Pendamping Keluarga
+                  </p>
                 </div>
-                <span className={`text-xl font-extrabold tracking-tight font-sans ${
-                  isDark ? 'text-white' : 'text-[#051226]'
-                }`}>
-                  Respi<span className={isDark ? 'text-[#4dd0e1]' : 'text-[#0d47a1]'}>Care</span>
-                </span>
+
+                {/* Segmented Role Switcher Register */}
+                <div className={`p-1 rounded-full border grid grid-cols-2 ${isDark ? 'bg-[#051226] border-[#00acc1]/25' : 'bg-slate-100 border border-slate-300'}`}>
+                  {['pasien', 'pendamping'].map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => { setRegisterRole(r); setRegisterError(''); }}
+                      className={`py-2 text-xs sm:text-sm font-bold rounded-full transition-all duration-200 text-center cursor-pointer flex items-center justify-center gap-1.5 ${
+                        registerRole === r
+                          ? isDark
+                            ? 'bg-[#4dd0e1] text-[#051226] shadow-md shadow-[#00acc1]/25'
+                            : 'bg-[#0d47a1] text-white shadow-sm'
+                          : isDark
+                          ? 'text-slate-400 hover:text-white'
+                          : 'text-slate-600 hover:text-[#051226] font-semibold'
+                      }`}
+                    >
+                      {r === 'pasien' ? <User className="w-3.5 h-3.5" /> : <Users className="w-3.5 h-3.5" />}
+                      <span className="capitalize">{r === 'pendamping' ? 'Pendamping' : 'Pasien'}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Register Form */}
+                <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
+                  {[
+                    { label: 'Nama Lengkap', key: 'name', type: 'text', placeholder: 'Nama sesuai rekam medis' },
+                    { label: 'Email', key: 'email', type: 'email', placeholder: 'nama@email.com' },
+                    { label: 'Kata Sandi', key: 'password', type: 'password', placeholder: 'Min. 6 karakter' },
+                    { label: 'No. WhatsApp / Telepon', key: 'phone', type: 'tel', placeholder: '08xxxxxxxxxx' },
+                  ].map((field) => (
+                    <div key={field.key}>
+                      <label className={`block text-xs uppercase tracking-wider mb-1.5 ${isDark ? 'text-slate-400 font-semibold' : 'text-slate-600 font-semibold'}`}>
+                        {field.label} <span className="text-red-500 font-bold">*</span>
+                      </label>
+                      <input
+                        type={field.type}
+                        required
+                        value={registerForm[field.key]}
+                        onChange={(e) => setRegisterForm({ ...registerForm, [field.key]: e.target.value })}
+                        placeholder={field.placeholder}
+                        className={`w-full rounded-xl px-4 py-3 text-sm focus:outline-none transition-all ${inputBg}`}
+                      />
+                    </div>
+                  ))}
+
+                  {/* Kode Pairing khusus Pendamping */}
+                  {registerRole === 'pendamping' && (
+                    <div className={`p-4 rounded-2xl border space-y-2 ${isDark ? 'bg-[#00acc1]/5 border-[#00acc1]/30' : 'bg-blue-50/80 border-blue-200'}`}>
+                      <label className={`block text-xs uppercase tracking-wider font-bold ${isDark ? 'text-[#4dd0e1]' : 'text-[#0d47a1]'}`}>
+                        Kode Pairing Pasien / No. RM <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={registerForm.pairingCode}
+                        onChange={(e) => { setRegisterForm({ ...registerForm, pairingCode: e.target.value }); setRegisterError(''); }}
+                        placeholder="RM-2026-040 atau PIN pasien"
+                        className={`w-full rounded-xl px-4 py-3 text-sm font-mono uppercase tracking-wider focus:outline-none transition-all ${inputBg}`}
+                      />
+                      <p className={`text-[11px] leading-tight ${isDark ? 'text-slate-400' : 'text-slate-600 font-medium'}`}>
+                        Minta No. RM atau PIN dari pasien yang ingin Anda pantau.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Error / Success */}
+                  {registerError && (
+                    <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 text-xs font-semibold">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{registerError}</span>
+                    </div>
+                  )}
+                  {registerSuccess && (
+                    <div className="flex items-start gap-2 p-3 rounded-xl bg-emerald-400/10 border border-emerald-400/30 text-emerald-400 text-xs font-semibold">
+                      <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                      <span>{registerSuccess}</span>
+                    </div>
+                  )}
+
+                  {/* Tombol Daftar */}
+                  <button
+                    type="submit"
+                    className={`w-full font-bold text-base py-3.5 rounded-full transition-all duration-200 flex items-center justify-center gap-2 shadow-lg cursor-pointer mt-2 ${btnPrimary}`}
+                  >
+                    <Check className="w-5 h-5 stroke-[2.5]" />
+                    <span>Daftar & Buat Akun</span>
+                  </button>
+                </form>
+
+                {/* Balik ke Login */}
+                <div className={`text-center text-xs sm:text-sm ${isDark ? 'text-slate-400' : 'text-slate-600 font-medium'}`}>
+                  <span>Sudah punya akun? </span>
+                  <button
+                    type="button"
+                    onClick={() => { setIsRegisterMode(false); setRegisterError(''); setRegisterSuccess(''); }}
+                    className={`font-bold underline hover:brightness-125 cursor-pointer ${isDark ? 'text-[#4dd0e1]' : 'text-[#0d47a1]'}`}
+                  >
+                    Masuk
+                  </button>
+                </div>
+
+                {/* Demo Login shortcut */}
+                <div className={`pt-2 border-t ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
+                  <button
+                    type="button"
+                    onClick={handleDemoLogin}
+                    className={`w-full py-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      isDark
+                        ? 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10'
+                        : 'bg-slate-50 border-slate-300 text-slate-600 hover:bg-slate-100 font-semibold'
+                    }`}
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Masuk dengan Akun Demo (Sendy Nevertheless)</span>
+                  </button>
+                </div>
               </div>
-              <h2 className={`text-2xl font-bold tracking-tight ${
-                isDark ? 'text-white' : 'text-[#051226]'
-              }`}>
-                Selamat Datang Kembali
-              </h2>
-              <p className={`text-sm mt-1 leading-snug ${
-                isDark ? 'text-slate-400' : 'text-slate-600 font-medium'
-              }`}>
-                Masuk untuk memantau jadwal obat &amp; teknik inhaler Anda
-              </p>
-            </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Header Form */}
+                <div>
+                  <div className="mb-3">
+                    <RespiCareLogo isDark={isDark} />
+                  </div>
+                  <h2 className={`text-2xl font-bold tracking-tight ${
+                    isDark ? 'text-white' : 'text-[#051226]'
+                  }`}>
+                    Selamat Datang Kembali
+                  </h2>
+                  <p className={`text-sm mt-1 leading-snug ${
+                    isDark ? 'text-slate-400' : 'text-slate-600 font-medium'
+                  }`}>
+                    Masuk untuk memantau jadwal obat &amp; teknik inhaler Anda
+                  </p>
+                </div>
 
             {/* Segmented Role Switcher: Pasien / Pendamping Keluarga */}
             <div
@@ -1140,11 +1512,7 @@ export default function App() {
               <span>Belum memiliki akun terapi? </span>
               <button
                 type="button"
-                onClick={() =>
-                  alert(
-                    'Pendaftaran akun baru divalidasi oleh Fasilitas Kesehatan (RS/Puskesmas). Silakan hubungi dokter spesialis paru Anda untuk registrasi nomor RM.'
-                  )
-                }
+                onClick={() => { setIsRegisterMode(true); setRegisterError(''); setRegisterSuccess(''); }}
                 className={`font-bold underline hover:brightness-125 cursor-pointer ${
                   isDark ? 'text-[#4dd0e1]' : 'text-[#0d47a1]'
                 }`}
@@ -1152,6 +1520,24 @@ export default function App() {
                 Daftar sekarang
               </button>
             </div>
+
+            {/* Tombol Akun Demo */}
+            <div className={`pt-2 border-t ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
+              <button
+                type="button"
+                onClick={handleDemoLogin}
+                className={`w-full py-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  isDark
+                    ? 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10'
+                    : 'bg-slate-50 border-slate-300 text-slate-600 hover:bg-slate-100 font-semibold'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Masuk dengan Akun Demo (Sendy Nevertheless)</span>
+              </button>
+            </div>
+          </div>
+        )} {/* END: isRegisterMode ternary */}
           </div>
         </div>
       </div>
@@ -1187,20 +1573,13 @@ export default function App() {
       >
         <div>
           {/* Logo Brand */}
-          <div className="flex items-center gap-3 px-2 py-3 mb-6">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#0d47a1] to-[#1976d2] text-[#e0f7fa] border border-[#4dd0e1]/30 flex items-center justify-center shadow-inner">
-              <HeartPulse className="w-5 h-5 stroke-[2.2]" />
-            </div>
-            <div>
-              <h1 className={`text-xl font-extrabold tracking-tight font-sans leading-none ${isDark ? 'text-white' : 'text-[#051226]'}`}>
-                Respi<span className={isDark ? 'text-[#4dd0e1]' : 'text-[#0d47a1]'}>Care</span>
-              </h1>
-              <p className={`text-[11px] font-medium mt-1 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                {userRole === 'pasien'
-                  ? 'Portal Pasien Mandiri'
-                  : 'Portal Pendamping Pasien'}
-              </p>
-            </div>
+          <div className="px-2 py-3 mb-6">
+            <RespiCareLogo isDark={isDark} />
+            <p className={`text-[11px] font-medium mt-1.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+              {userRole === 'pasien'
+                ? 'Portal Pasien Mandiri'
+                : 'Portal Pendamping Pasien'}
+            </p>
           </div>
 
           {/* Lencana Statis Peran Terkunci (Read-only Badge) */}
@@ -1334,14 +1713,9 @@ export default function App() {
         }`}
       >
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#0d47a1] to-[#1976d2] text-[#e0f7fa] flex items-center justify-center">
-            <HeartPulse className="w-4 h-4" />
-          </div>
-          <span className={`font-extrabold text-base tracking-tight ${isDark ? 'text-white' : 'text-[#051226]'}`}>
-            Respi<span className={isDark ? 'text-[#4dd0e1]' : 'text-[#0d47a1]'}>Care</span>
-          </span>
+          <RespiCareLogo isDark={isDark} size="sm" />
           <span
-            className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+            className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
               isDark
                 ? 'bg-[#4dd0e1]/10 text-[#4dd0e1] border-[#4dd0e1]/25'
                 : 'bg-[#0d47a1]/10 text-[#0d47a1] border border-[#0d47a1]/20'
@@ -1579,14 +1953,6 @@ export default function App() {
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => setActiveTab('tambah')}
-                          className={`px-3.5 py-2 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer ${btnPrimary}`}
-                        >
-                          <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                          <span>Tambah Obat</span>
-                        </button>
-                        <button
-                          type="button"
                           onClick={() => setActiveTab('laporan')}
                           className={`px-3.5 py-2 text-xs font-semibold rounded-xl border transition-all flex items-center gap-1.5 cursor-pointer ${
                             isDark
@@ -1594,8 +1960,8 @@ export default function App() {
                               : 'border-slate-300 hover:bg-slate-100 text-slate-700 font-semibold'
                           }`}
                         >
-                          <RotateCcw className="w-3.5 h-3.5" />
-                          <span>Riwayat</span>
+                          <BarChart3 className="w-3.5 h-3.5" />
+                          <span>Riwayat Kepatuhan</span>
                         </button>
                       </div>
                     </div>
@@ -1896,23 +2262,36 @@ export default function App() {
 
                   {/* Kartu Pantauan Jadwal Real-Time Pasien */}
                   <div className={`rounded-2xl p-6 space-y-4 ${cardBg}`}>
-                    <div className={`flex items-center justify-between pb-3 border-b ${borderLight}`}>
+                    <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b ${borderLight}`}>
                       <div>
                         <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-[#051226]'}`}>
                           Pantauan Jadwal Terapi Pasien Real-Time
                         </h3>
                         <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600 font-medium'}`}>
-                          Status langsung dari perangkat pasien Sendy Nevertheless
+                          Status langsung dari perangkat pasien {profile.name}
                         </p>
                       </div>
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
-                        isDark
-                          ? 'bg-emerald-400/10 text-emerald-400 border border-emerald-400/25'
-                          : 'bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold'
-                      }`}>
-                        <span className={`w-2 h-2 rounded-full animate-pulse ${isDark ? 'bg-emerald-400' : 'bg-emerald-600'}`} />
-                        Sinkronisasi Real-time
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleCancelEdit();
+                            setActiveTab('tambah');
+                          }}
+                          className={`px-3.5 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer ${btnPrimary}`}
+                        >
+                          <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                          <span>Atur / Tambah Obat</span>
+                        </button>
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+                          isDark
+                            ? 'bg-emerald-400/10 text-emerald-400 border border-emerald-400/25'
+                            : 'bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold'
+                        }`}>
+                          <span className={`w-2 h-2 rounded-full animate-pulse ${isDark ? 'bg-emerald-400' : 'bg-emerald-600'}`} />
+                          Sinkronisasi
+                        </span>
+                      </div>
                     </div>
 
                     <div className={`divide-y ${isDark ? 'divide-white/10' : 'divide-slate-200'}`}>
@@ -1953,7 +2332,7 @@ export default function App() {
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                               <span
                                 className={`text-xs font-bold px-3 py-1 rounded-full border ${
                                   isTaken
@@ -1980,16 +2359,43 @@ export default function App() {
                                       `Mengingatkan jadwal ${med.name} pukul ${med.time}`
                                     )
                                   }
-                                  className={`px-3.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                                  className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
                                     isDark
                                       ? 'bg-[#4dd0e1] text-[#051226]'
                                       : 'bg-[#0d47a1] text-white hover:bg-[#1976d2]'
                                   }`}
+                                  title="Telepon Pasien"
                                 >
                                   <PhoneCall className="w-3.5 h-3.5" />
-                                  <span>Telepon</span>
+                                  <span className="hidden sm:inline">Telepon</span>
                                 </button>
                               )}
+
+                              <button
+                                type="button"
+                                onClick={() => handleEditMedication(med)}
+                                className={`p-1.5 rounded-xl border transition-all cursor-pointer ${
+                                  isDark
+                                    ? 'bg-white/5 border-white/10 text-slate-300 hover:text-white hover:bg-white/10'
+                                    : 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'
+                                }`}
+                                title="Edit Jadwal & Dosis"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteMedication(med.id)}
+                                className={`p-1.5 rounded-xl border transition-all cursor-pointer ${
+                                  isDark
+                                    ? 'bg-red-500/10 border-red-500/25 text-red-400 hover:bg-red-500/20'
+                                    : 'bg-red-50 border-red-300 text-red-700 hover:bg-red-100'
+                                }`}
+                                title="Hapus Jadwal"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           </div>
                         );
@@ -2002,18 +2408,34 @@ export default function App() {
           )}
 
           {/* ==================================================== */}
-          {/* TAB 2: TAMBAH OBAT (JADWAL BARU)                     */}
+          {/* TAB 2: TAMBAH OBAT (JADWAL BARU / EDIT)              */}
           {/* ==================================================== */}
           {activeTab === 'tambah' && (
             <div className="space-y-6 max-w-2xl mx-auto animate-fade-in">
-              <div>
-                <h2 className={`text-2xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-[#051226]'}`}>
-                  Atur Jadwal Terapi Baru
-                </h2>
-                <p className={`text-sm mt-1 font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                  Tambahkan obat inhaler atau obat oral ke dalam daftar pantau
-                  harian
-                </p>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <h2 className={`text-2xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-[#051226]'}`}>
+                    {editingMedId ? 'Perbarui Jadwal Terapi Obat' : 'Atur Jadwal Terapi Baru'}
+                  </h2>
+                  <p className={`text-sm mt-1 font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                    {editingMedId
+                      ? 'Edit takaran dosis, waktu minum, atau sediaan obat'
+                      : 'Tambahkan obat inhaler atau obat oral ke dalam daftar pantau harian'}
+                  </p>
+                </div>
+                {editingMedId && (
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className={`px-4 py-2 text-xs font-semibold rounded-xl border transition-all cursor-pointer ${
+                      isDark
+                        ? 'border-white/10 hover:bg-white/5 text-slate-300'
+                        : 'border-slate-300 hover:bg-slate-100 text-slate-700'
+                    }`}
+                  >
+                    Batal Perubahan
+                  </button>
+                )}
               </div>
 
               <form
@@ -2248,13 +2670,26 @@ export default function App() {
                   </div>
                 )}
 
-                <div className="pt-3">
+                <div className="pt-3 flex items-center gap-3">
+                  {editingMedId && (
+                    <button
+                      type="button"
+                      onClick={handleCancelEdit}
+                      className={`flex-1 py-3.5 px-4 rounded-xl text-sm font-semibold border transition-all cursor-pointer text-center ${
+                        isDark
+                          ? 'border-white/10 text-slate-300 hover:bg-white/5'
+                          : 'border-slate-300 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      Batal
+                    </button>
+                  )}
                   <button
                     type="submit"
-                    className={`w-full py-3.5 px-4 rounded-xl text-base font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${btnPrimary}`}
+                    className={`${editingMedId ? 'flex-[2]' : 'w-full'} py-3.5 px-4 rounded-xl text-base font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${btnPrimary}`}
                   >
                     <Check className="w-5 h-5 stroke-[2.5]" />
-                    <span>Simpan &amp; Tampilkan di Jadwal</span>
+                    <span>{editingMedId ? 'Simpan Perubahan Jadwal' : 'Simpan & Tampilkan di Jadwal'}</span>
                   </button>
                 </div>
               </form>
@@ -2556,9 +2991,24 @@ export default function App() {
                   onSubmit={handleSaveProfile}
                   className={`rounded-2xl p-6 space-y-4 ${cardBg}`}
                 >
-                  <div className={`flex items-center gap-2 pb-3 border-b ${borderLight}`}>
-                    <User className={`w-5 h-5 ${isDark ? 'text-[#4dd0e1]' : 'text-[#0d47a1]'}`} />
-                    <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-[#051226]'}`}>Informasi Pribadi</h3>
+                  <div className={`flex items-center justify-between pb-3 border-b ${borderLight}`}>
+                    <div className="flex items-center gap-2">
+                      <User className={`w-5 h-5 ${isDark ? 'text-[#4dd0e1]' : 'text-[#0d47a1]'}`} />
+                      <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-[#051226]'}`}>Informasi Pribadi</h3>
+                    </div>
+                    {userRole === 'pasien' ? (
+                      <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                        isDark ? 'bg-amber-400/10 text-amber-300 border-amber-400/25' : 'bg-amber-100 text-amber-900 border-amber-300'
+                      }`}>
+                        Read-Only (Pasien)
+                      </span>
+                    ) : (
+                      <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                        isDark ? 'bg-emerald-400/10 text-emerald-400 border-emerald-400/25' : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                      }`}>
+                        Mode Edit (Pendamping)
+                      </span>
+                    )}
                   </div>
 
                   <div>
@@ -2581,11 +3031,16 @@ export default function App() {
                     </label>
                     <input
                       type="text"
+                      disabled={userRole === 'pasien'}
                       value={profile.name}
                       onChange={(e) =>
                         setProfile({ ...profile, name: e.target.value })
                       }
-                      className={`w-full py-2.5 px-4 rounded-xl text-sm font-medium ${inputBg}`}
+                      className={`w-full py-2.5 px-4 rounded-xl text-sm font-medium ${
+                        userRole === 'pasien'
+                          ? isDark ? 'opacity-70 bg-[#051226]/80 border border-[#00acc1]/20 cursor-not-allowed' : 'bg-slate-100 border border-slate-300 text-slate-800 cursor-not-allowed'
+                          : inputBg
+                      }`}
                     />
                   </div>
 
@@ -2595,11 +3050,16 @@ export default function App() {
                     </label>
                     <input
                       type="text"
+                      disabled={userRole === 'pasien'}
                       value={profile.phone}
                       onChange={(e) =>
                         setProfile({ ...profile, phone: e.target.value })
                       }
-                      className={`w-full py-2.5 px-4 rounded-xl text-sm font-medium ${inputBg}`}
+                      className={`w-full py-2.5 px-4 rounded-xl text-sm font-medium ${
+                        userRole === 'pasien'
+                          ? isDark ? 'opacity-70 bg-[#051226]/80 border border-[#00acc1]/20 cursor-not-allowed' : 'bg-slate-100 border border-slate-300 text-slate-800 cursor-not-allowed'
+                          : inputBg
+                      }`}
                     />
                   </div>
 
@@ -2609,21 +3069,35 @@ export default function App() {
                     </label>
                     <textarea
                       rows={2}
+                      disabled={userRole === 'pasien'}
                       value={profile.address}
                       onChange={(e) =>
                         setProfile({ ...profile, address: e.target.value })
                       }
-                      className={`w-full py-2.5 px-4 rounded-xl text-sm font-medium resize-none ${inputBg}`}
+                      className={`w-full py-2.5 px-4 rounded-xl text-sm font-medium resize-none ${
+                        userRole === 'pasien'
+                          ? isDark ? 'opacity-70 bg-[#051226]/80 border border-[#00acc1]/20 cursor-not-allowed' : 'bg-slate-100 border border-slate-300 text-slate-800 cursor-not-allowed'
+                          : inputBg
+                      }`}
                     />
                   </div>
 
                   <div className="pt-2">
-                    <button
-                      type="submit"
-                      className={`py-2.5 px-5 rounded-xl text-sm font-bold cursor-pointer ${btnPrimary}`}
-                    >
-                      Simpan Perubahan
-                    </button>
+                    {userRole === 'pasien' ? (
+                      <div className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${
+                        isDark ? 'bg-[#051226] border-white/10 text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-600'
+                      }`}>
+                        <ShieldCheck className="w-4 h-4 text-[#4dd0e1] shrink-0" />
+                        <span>Data profil Anda dikunci untuk keamanan rekam medis. Perubahan data dapat dilakukan melalui portal Pendamping Keluarga.</span>
+                      </div>
+                    ) : (
+                      <button
+                        type="submit"
+                        className={`w-full py-2.5 px-5 rounded-xl text-sm font-bold cursor-pointer ${btnPrimary}`}
+                      >
+                        Simpan Perubahan Data Pasien
+                      </button>
+                    )}
                   </div>
                 </form>
 

@@ -201,17 +201,13 @@ export default function LandingPage({ onLogin, onStart, theme = 'dark', toggleTh
                 : 'opacity-100 translate-y-0'
             }`}
           >
-            <div className={`w-9 h-9 rounded-xl border flex items-center justify-center shadow-inner ${
-              theme === 'light'
-                ? 'bg-[#0d47a1]/10 text-[#0d47a1] border-[#0d47a1]/30'
-                : 'bg-blue-500/20 text-[#38BDF8] border-[#38BDF8]/30'
-            }`}>
-              <Wind className="w-5 h-5 stroke-[2.2]" />
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#0d47a1] to-[#1976d2] text-[#e0f7fa] border border-[#4dd0e1]/30 flex items-center justify-center shadow-inner shrink-0">
+              <HeartPulse className="w-5 h-5 stroke-[2.2]" />
             </div>
             <span className={`text-xl font-extrabold tracking-tight font-sans ${
               theme === 'light' ? 'text-[#051226]' : 'text-white'
             }`}>
-              Respi<span className={theme === 'light' ? 'text-[#0d47a1]' : 'text-[#38BDF8]'}>Care</span>
+              Respi<span className={theme === 'light' ? 'text-[#0d47a1]' : 'text-[#4dd0e1]'}>Care</span>
             </span>
           </div>
 
