@@ -154,20 +154,46 @@ export default function App() {
   // Navigation Tabs in Dashboard: 'jadwal' | 'tambah' | 'laporan' | 'kontak' | 'akun'
   const [activeTab, setActiveTab] = useState('jadwal');
 
-  // Patient Profile Data
-  const [profile, setProfile] = useState({
+  // ==========================================================
+  // DEMO PATIENT CONSTANT (single source of truth)
+  // ==========================================================
+  const DEMO_PATIENT = {
     name: 'Sendy Nevertheless',
     rm: 'RM-2026-040',
     email: 'sendyi0110@gmail.com',
     phone: '085832713744',
     address: 'Dusun Dawung Desa Bedug Kec. Ngadiluwih',
-    birthDate: '01 Sep 2008',
+    birthPlace: 'Kediri',
+    birthDate: '2008-09-01',
     age: '18 tahun',
     gender: 'Laki-laki',
     condition: 'Asma Bronkial & PPOK Derajat 2',
     targetBp: '- mmHg',
     emergencyContact: 'Siti Rahayu (0812-3456-7890)',
     guardianPhone: '081234567890',
+    pin: '8492',
+    role: 'pasien',
+  };
+
+  // Current logged-in user (null = belum login)
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // Patient Profile Data — kosong saat init, diisi dinamis saat login
+  const [profile, setProfile] = useState({
+    name: '',
+    rm: '',
+    email: '',
+    phone: '',
+    address: '',
+    birthPlace: '',
+    birthDate: '',
+    age: '',
+    gender: '',
+    condition: '',
+    targetBp: '- mmHg',
+    emergencyContact: '',
+    guardianPhone: '',
+    pin: '',
   });
 
   // Login Form State
@@ -188,6 +214,11 @@ export default function App() {
     password: '',
     phone: '',
     pairingCode: '',
+    birthPlace: '',
+    birthDate: '',
+    gender: 'Laki-laki',
+    diagnosis: 'Asma Bronkial',
+    address: '',
   });
   const [registerRole, setRegisterRole] = useState('pasien');
   const [registerError, setRegisterError] = useState('');
@@ -207,6 +238,17 @@ export default function App() {
     localStorage.setItem('respicare-accounts', JSON.stringify(registeredAccounts));
   }, [registeredAccounts]);
 
+  // Helper: hitung usia dari tanggal lahir ISO string
+  const calculateAge = (birthDateStr) => {
+    if (!birthDateStr) return '';
+    const birth = new Date(birthDateStr);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    return age;
+  };
+
   const handleRegisterSubmit = (e) => {
     e.preventDefault();
     setRegisterError('');
@@ -222,6 +264,22 @@ export default function App() {
       return;
     }
 
+    // Validasi field medis untuk Pasien
+    if (registerRole === 'pasien') {
+      if (!registerForm.birthPlace.trim()) {
+        setRegisterError('Tempat Lahir wajib diisi.');
+        return;
+      }
+      if (!registerForm.birthDate) {
+        setRegisterError('Tanggal Lahir wajib diisi.');
+        return;
+      }
+      if (!registerForm.address.trim()) {
+        setRegisterError('Alamat wajib diisi.');
+        return;
+      }
+    }
+
     // Cek email sudah terdaftar
     const demoEmail = 'sendyi0110@gmail.com';
     const allEmails = [demoEmail, ...registeredAccounts.map((a) => a.email)];
@@ -232,15 +290,15 @@ export default function App() {
 
     if (registerRole === 'pendamping') {
       // Validasi kode pairing: harus cocok dengan pasien yang ada
-      const demoRm = profile.rm.toUpperCase();
-      const demoPin = '8492';
+      const demoRm = DEMO_PATIENT.rm.toUpperCase();
+      const demoPin = DEMO_PATIENT.pin;
       const inputCode = pairingCode.trim().toUpperCase();
       const matchDemoPatient =
         inputCode === demoRm || inputCode === demoPin;
       const matchRegisteredPatient = registeredAccounts.some(
         (a) =>
           a.role === 'pasien' &&
-          (inputCode === a.rm.toUpperCase() || inputCode === (a.pin || ''))
+          (inputCode === (a.rm || '').toUpperCase() || inputCode === (a.pin || ''))
       );
 
       if (!pairingCode.trim()) {
@@ -265,6 +323,8 @@ export default function App() {
         ? String(Math.floor(Math.random() * 9000 + 1000))
         : null;
 
+    const computedAge = calculateAge(registerForm.birthDate);
+
     const newAccount = {
       name: name.trim(),
       email: email.trim().toLowerCase(),
@@ -273,6 +333,12 @@ export default function App() {
       role: registerRole,
       rm: newRm,
       pin: newPin,
+      birthPlace: registerForm.birthPlace.trim(),
+      birthDate: registerForm.birthDate,
+      age: computedAge ? `${computedAge} tahun` : '',
+      gender: registerForm.gender,
+      condition: registerRole === 'pasien' ? (registerForm.diagnosis || 'Belum Ditentukan') : '-',
+      address: registerForm.address.trim(),
       pairingCode: registerRole === 'pendamping' ? pairingCode.trim() : null,
       createdAt: new Date().toISOString(),
     };
@@ -289,20 +355,20 @@ export default function App() {
 
     setTimeout(() => {
       setIsRegisterMode(false);
-      setRegisterForm({ name: '', email: '', password: '', phone: '', pairingCode: '' });
+      setRegisterForm({ name: '', email: '', password: '', phone: '', pairingCode: '', birthPlace: '', birthDate: '', gender: 'Laki-laki', diagnosis: 'Asma Bronkial', address: '' });
       setRegisterSuccess('');
       setRegisterError('');
     }, 3500);
   };
 
   const handleDemoLogin = () => {
+    setCurrentUser(DEMO_PATIENT);
+    setProfile({ ...DEMO_PATIENT });
     setLoginRole('pasien');
-    setLoginForm({ email: 'sendyi0110@gmail.com', password: 'password123', rememberMe: false });
-    // Langsung login
     setUserRole('pasien');
     setCurrentView('dashboard');
     setActiveTab('jadwal');
-    setToastMessage(`Selamat Datang (Demo), ${profile.name}! 👋`);
+    setToastMessage(`Selamat Datang (Demo), ${DEMO_PATIENT.name}! 👋`);
   };
 
   // State untuk Validasi Kode Pairing Pendamping Keluarga
@@ -313,16 +379,35 @@ export default function App() {
   // Verifikasi Kode Pairing (No. RM RM-2026-040 atau PIN 8492)
   const isPairingVerified =
     loginRole === 'pendamping' &&
-    (pairingCode.trim().toUpperCase() === profile.rm.toUpperCase() ||
-      pairingCode.trim() === '8492');
+    (pairingCode.trim().toUpperCase() === DEMO_PATIENT.rm.toUpperCase() ||
+      pairingCode.trim() === DEMO_PATIENT.pin ||
+      registeredAccounts.some(
+        (a) =>
+          a.role === 'pasien' &&
+          (pairingCode.trim().toUpperCase() === (a.rm || '').toUpperCase() ||
+            pairingCode.trim() === (a.pin || ''))
+      ));
+
+  // Nama pasien yang terverifikasi (untuk lencana hijau)
+  const verifiedPatientName = isPairingVerified
+    ? pairingCode.trim().toUpperCase() === DEMO_PATIENT.rm.toUpperCase() ||
+      pairingCode.trim() === DEMO_PATIENT.pin
+      ? DEMO_PATIENT.name
+      : registeredAccounts.find(
+          (a) =>
+            a.role === 'pasien' &&
+            (pairingCode.trim().toUpperCase() === (a.rm || '').toUpperCase() ||
+              pairingCode.trim() === (a.pin || ''))
+        )?.name || 'Pasien'
+    : '';
 
   const handleCopyPairing = () => {
-    const textToCopy = `Kode Pairing RespiCare Pasien\nNama: ${profile.name}\nNo. RM: ${profile.rm}\nPIN: 8492`;
+    const textToCopy = `Kode Pairing RespiCare Pasien\nNama: ${profile.name}\nNo. RM: ${profile.rm}\nPIN: ${profile.pin || DEMO_PATIENT.pin}`;
     if (navigator?.clipboard?.writeText) {
       navigator.clipboard.writeText(textToCopy);
     }
     setCopiedPairing(true);
-    setToastMessage(`✓ Kode Pairing Pasien (${profile.rm} / PIN 8492) berhasil disalin!`);
+    setToastMessage(`✓ Kode Pairing Pasien (${profile.rm} / PIN ${profile.pin || DEMO_PATIENT.pin}) berhasil disalin!`);
     setTimeout(() => setCopiedPairing(false), 2500);
   };
 
@@ -754,18 +839,92 @@ export default function App() {
         setPairingError('Kode Pairing Pasien / No. Rekam Medis wajib diisi.');
         return;
       }
-      const demoRmUpper = profile.rm.toUpperCase();
-      const matchDemoPatient = code === demoRmUpper || code === '8492';
+      const matchDemoPatient =
+        code === DEMO_PATIENT.rm.toUpperCase() || code === DEMO_PATIENT.pin;
       const matchRegisteredPatient = registeredAccounts.some(
         (a) => a.role === 'pasien' && (code === (a.rm || '').toUpperCase() || code === (a.pin || ''))
       );
       if (!matchDemoPatient && !matchRegisteredPatient) {
         setPairingError(
-          `Kode "${pairingCode}" tidak terdaftar. Masukkan No. RM pasien yang sesuai (contoh: ${profile.rm}) atau PIN 8492.`
+          `Kode "${pairingCode}" tidak terdaftar. Masukkan No. RM pasien yang sesuai atau PIN yang diberikan pasien.`
         );
         return;
       }
       setPairingError('');
+    }
+
+    // Set currentUser dan profile secara dinamis
+    if (isDemoUser) {
+      setCurrentUser(DEMO_PATIENT);
+      setProfile({ ...DEMO_PATIENT });
+    } else if (registeredUser) {
+      setCurrentUser(registeredUser);
+      if (resolvedRole === 'pasien') {
+        setProfile({
+          name: registeredUser.name || '',
+          rm: registeredUser.rm || '',
+          email: registeredUser.email || '',
+          phone: registeredUser.phone || '',
+          address: registeredUser.address || '',
+          birthPlace: registeredUser.birthPlace || '',
+          birthDate: registeredUser.birthDate || '',
+          age: registeredUser.age || '',
+          gender: registeredUser.gender || '-',
+          condition: registeredUser.condition || '-',
+          targetBp: '- mmHg',
+          emergencyContact: '-',
+          guardianPhone: '-',
+          pin: registeredUser.pin || '',
+        });
+      } else {
+        // Pendamping Keluarga: cari data pasien yang dipasangkan
+        const code = (pairingCode || registeredUser.pairingCode || '').trim().toUpperCase();
+        const pairedPatient =
+          registeredAccounts.find(
+            (a) =>
+              a.role === 'pasien' &&
+              (code === (a.rm || '').toUpperCase() || code === (a.pin || ''))
+          ) ||
+          (code === DEMO_PATIENT.rm.toUpperCase() || code === DEMO_PATIENT.pin
+            ? DEMO_PATIENT
+            : null);
+
+        if (pairedPatient) {
+          setProfile({
+            name: pairedPatient.name || '',
+            rm: pairedPatient.rm || '',
+            email: pairedPatient.email || '',
+            phone: pairedPatient.phone || '',
+            address: pairedPatient.address || '',
+            birthPlace: pairedPatient.birthPlace || '',
+            birthDate: pairedPatient.birthDate || '',
+            age: pairedPatient.age || '',
+            gender: pairedPatient.gender || '-',
+            condition: pairedPatient.condition || '-',
+            targetBp: '- mmHg',
+            emergencyContact: `${registeredUser.name} (${registeredUser.phone})`,
+            guardianPhone: registeredUser.phone || '-',
+            pin: pairedPatient.pin || '',
+          });
+        } else {
+          setProfile({
+            name: registeredUser.name || 'Pasien Terpantau',
+            rm: code || 'RM-BELUM-TERDATA',
+            email: registeredUser.email || '',
+            phone: '-',
+            address: '-',
+            birthPlace: '-',
+            birthDate: '-',
+            age: '-',
+            gender: '-',
+            condition: '-',
+            targetBp: '- mmHg',
+            emergencyContact: `${registeredUser.name} (${registeredUser.phone})`,
+            guardianPhone: registeredUser.phone || '-',
+            pin: '',
+          });
+        }
+      }
     }
 
     setUserRole(resolvedRole);
@@ -774,7 +933,7 @@ export default function App() {
     setToastMessage(
       `Selamat Datang, ${
         resolvedRole === 'pasien'
-          ? registeredUser?.name || profile.name
+          ? (isDemoUser ? DEMO_PATIENT.name : registeredUser?.name || '')
           : 'Pendamping Keluarga'
       }! 👋`
     );
@@ -1078,7 +1237,7 @@ export default function App() {
         {/* KOLOM KANAN (lg:col-span-5) — PANEL FORMULIR LOGIN           */}
         {/* ============================================================ */}
         <div
-          className={`lg:col-span-5 backdrop-blur-xl lg:border-l flex flex-col justify-center px-6 sm:px-12 py-12 relative min-h-screen lg:min-h-0 ${
+          className={`lg:col-span-5 backdrop-blur-xl lg:border-l flex flex-col justify-start pt-12 lg:pt-16 px-6 sm:px-12 py-12 relative min-h-screen lg:min-h-0 ${
             isDark
               ? 'bg-[#081b3a]/70 lg:border-[#00acc1]/20'
               : 'bg-white lg:border-slate-200 shadow-sm'
@@ -1177,6 +1336,87 @@ export default function App() {
                     </div>
                   ))}
 
+                  {/* Field Medis Tambahan khusus Pasien */}
+                  {registerRole === 'pasien' && (
+                    <div className={`p-4 rounded-2xl border space-y-3.5 ${isDark ? 'bg-[#00acc1]/5 border-[#00acc1]/20' : 'bg-blue-50/60 border-blue-200'}`}>
+                      <p className={`text-[11px] font-bold uppercase tracking-wider ${isDark ? 'text-[#4dd0e1]' : 'text-[#0d47a1]'}`}>
+                        Data Medis Pasien
+                      </p>
+                      <div>
+                        <label className={`block text-xs uppercase tracking-wider mb-1.5 ${isDark ? 'text-slate-400 font-semibold' : 'text-slate-600 font-semibold'}`}>
+                          Tempat Lahir <span className="text-red-500 font-bold">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={registerForm.birthPlace}
+                          onChange={(e) => setRegisterForm({ ...registerForm, birthPlace: e.target.value })}
+                          placeholder="Kota / Kabupaten tempat lahir"
+                          className={`w-full rounded-xl px-4 py-3 text-sm focus:outline-none transition-all ${inputBg}`}
+                        />
+                      </div>
+                      <div>
+                        <label className={`block text-xs uppercase tracking-wider mb-1.5 ${isDark ? 'text-slate-400 font-semibold' : 'text-slate-600 font-semibold'}`}>
+                          Tanggal Lahir <span className="text-red-500 font-bold">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          value={registerForm.birthDate}
+                          max={new Date().toISOString().split('T')[0]}
+                          onChange={(e) => setRegisterForm({ ...registerForm, birthDate: e.target.value })}
+                          className={`w-full rounded-xl px-4 py-3 text-sm focus:outline-none transition-all ${inputBg}`}
+                        />
+                        {registerForm.birthDate && (
+                          <p className={`text-[11px] mt-1 font-semibold ${isDark ? 'text-[#4dd0e1]' : 'text-[#0d47a1]'}`}>
+                            Usia: {calculateAge(registerForm.birthDate)} tahun
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <label className={`block text-xs uppercase tracking-wider mb-1.5 ${isDark ? 'text-slate-400 font-semibold' : 'text-slate-600 font-semibold'}`}>
+                          Jenis Kelamin
+                        </label>
+                        <select
+                          value={registerForm.gender}
+                          onChange={(e) => setRegisterForm({ ...registerForm, gender: e.target.value })}
+                          className={`w-full rounded-xl px-4 py-3 text-sm focus:outline-none transition-all ${inputBg}`}
+                        >
+                          <option value="Laki-laki">Laki-laki</option>
+                          <option value="Perempuan">Perempuan</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className={`block text-xs uppercase tracking-wider mb-1.5 ${isDark ? 'text-slate-400 font-semibold' : 'text-slate-600 font-semibold'}`}>
+                          Penyakit / Diagnosis
+                        </label>
+                        <select
+                          value={registerForm.diagnosis}
+                          onChange={(e) => setRegisterForm({ ...registerForm, diagnosis: e.target.value })}
+                          className={`w-full rounded-xl px-4 py-3 text-sm focus:outline-none transition-all ${inputBg}`}
+                        >
+                          <option value="Asma Bronkial">Asma Bronkial</option>
+                          <option value="PPOK (Penyakit Paru Obstruktif Kronik)">PPOK (Penyakit Paru Obstruktif Kronik)</option>
+                          <option value="Asma Bronkial & PPOK Derajat 2">Asma Bronkial &amp; PPOK Derajat 2</option>
+                          <option value="Rinitis Alergi">Rinitis Alergi</option>
+                          <option value="Pneumonia">Pneumonia</option>
+                          <option value="TBC (Tuberkulosis)">TBC (Tuberkulosis)</option>
+                          <option value="Lainnya">Lainnya (Belum Ditentukan)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className={`block text-xs uppercase tracking-wider mb-1.5 ${isDark ? 'text-slate-400 font-semibold' : 'text-slate-600 font-semibold'}`}>
+                          Alamat Lengkap <span className="text-red-500 font-bold">*</span>
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={registerForm.address}
+                          onChange={(e) => setRegisterForm({ ...registerForm, address: e.target.value })}
+                          placeholder="Dusun / Jalan, Desa, Kecamatan, Kota"
+                          className={`w-full rounded-xl px-4 py-3 text-sm focus:outline-none transition-all resize-none ${inputBg}`}
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   {/* Kode Pairing khusus Pendamping */}
                   {registerRole === 'pendamping' && (
                     <div className={`p-4 rounded-2xl border space-y-2 ${isDark ? 'bg-[#00acc1]/5 border-[#00acc1]/30' : 'bg-blue-50/80 border-blue-200'}`}>
@@ -1245,7 +1485,7 @@ export default function App() {
                     }`}
                   >
                     <Sparkles className="w-3.5 h-3.5" />
-                    <span>Masuk dengan Akun Demo (Sendy Nevertheless)</span>
+                    <span>Masuk dengan Akun Demo</span>
                   </button>
                 </div>
               </div>
@@ -1379,25 +1619,12 @@ export default function App() {
                     ? 'bg-[#00acc1]/5 border-[#00acc1]/30'
                     : 'bg-blue-50/80 border-blue-200'
                 }`}>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-start">
                     <label className={`block text-xs uppercase tracking-wider font-bold ${
                       isDark ? 'text-[#4dd0e1]' : 'text-[#0d47a1]'
                     }`}>
                       Kode Pairing Pasien / No. Rekam Medis <span className="text-red-500 font-bold">*</span>
                     </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPairingCode('RM-2026-040');
-                        setPairingError('');
-                      }}
-                      className={`text-[11px] underline font-semibold cursor-pointer ${
-                        isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-[#0d47a1]'
-                      }`}
-                      title="Klik untuk mengisi RM-2026-040 secara otomatis"
-                    >
-                      Gunakan RM-2026-040
-                    </button>
                   </div>
 
                   <div className="relative">
@@ -1433,7 +1660,7 @@ export default function App() {
                         : 'bg-emerald-100 text-emerald-800 border-emerald-300'
                     }`}>
                       <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                      <span>✓ Pasien Terverifikasi: {profile.name}</span>
+                      <span>✓ Pasien Terverifikasi: {verifiedPatientName}</span>
                     </div>
                   )}
 
@@ -1533,7 +1760,7 @@ export default function App() {
                 }`}
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Masuk dengan Akun Demo (Sendy Nevertheless)</span>
+                <span>Masuk dengan Akun Demo</span>
               </button>
             </div>
           </div>
@@ -1678,7 +1905,7 @@ export default function App() {
           <div className="flex items-center justify-between px-2">
             <div className="flex items-center gap-2.5 overflow-hidden">
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#0d47a1] to-[#1976d2] text-[#e0f7fa] font-bold flex items-center justify-center shrink-0 text-sm shadow-inner">
-                {profile.name.charAt(0)}
+                {(profile.name || 'P').charAt(0)}
               </div>
               <div className="overflow-hidden">
                 <p className={`text-xs font-bold truncate leading-tight ${isDark ? 'text-white' : 'text-[#051226]'}`}>
@@ -1850,8 +2077,8 @@ export default function App() {
                         type="button"
                         onClick={() =>
                           handleStartCall(
-                            'Siti Rahayu (Pendamping Keluarga)',
-                            profile.guardianPhone,
+                            profile.emergencyContact || 'Pendamping Keluarga',
+                            profile.guardianPhone || profile.phone || '081234567890',
                             'Menghubungi Pendamping untuk Konsultasi Terapi'
                           )
                         }
@@ -2135,8 +2362,8 @@ export default function App() {
                       </button>
 
                       <a
-                        href={`https://wa.me/62${profile.phone.replace(/^0/, '')}?text=Halo%20${encodeURIComponent(
-                          profile.name
+                        href={`https://wa.me/62${(profile.phone || '').replace(/^0/, '')}?text=Halo%20${encodeURIComponent(
+                          profile.name || 'Pasien'
                         )},%20apakah%20sudah%20minum%20obat%20pernapasan%20jadwal%20hari%20ini?%20Jangan%20lupa%20ikuti%20panduan%20teknik%20inhaler%20di%20RespiCare.`}
                         target="_blank"
                         rel="noreferrer"
@@ -2715,7 +2942,7 @@ export default function App() {
               <div className={`rounded-2xl p-6 sm:p-8 space-y-6 ${cardBg}`}>
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#0d47a1] to-[#1976d2] text-[#e0f7fa] font-extrabold text-2xl flex items-center justify-center shadow-lg">
-                    {profile.name.charAt(0)}
+                    {(profile.name || 'P').charAt(0)}
                   </div>
                   <div>
                     <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-[#051226]'}`}>{profile.name}</h3>
@@ -2740,7 +2967,7 @@ export default function App() {
                       Nomor Telepon Seluler:
                     </span>
                     <p className={`text-lg font-mono font-bold ${isDark ? 'text-[#4dd0e1]' : 'text-[#0d47a1]'}`}>
-                      +62 858-3271-3744
+                      {profile.phone}
                     </p>
                   </div>
 
@@ -2765,7 +2992,7 @@ export default function App() {
                     </button>
 
                     <a
-                      href={`https://wa.me/62${profile.phone.replace(/^0/, '')}`}
+                      href={`https://wa.me/62${(profile.phone || '').replace(/^0/, '')}`}
                       target="_blank"
                       rel="noreferrer"
                       className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm rounded-xl flex items-center gap-2 shadow-md transition-all"
@@ -2965,14 +3192,14 @@ export default function App() {
               >
                 <div className="flex items-center gap-4">
                   <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#0d47a1] to-[#1976d2] text-[#e0f7fa] border border-[#4dd0e1]/30 flex items-center justify-center text-2xl font-extrabold shrink-0">
-                    {profile.name.charAt(0)}
+                    {(profile.name || 'P').charAt(0)}
                   </div>
                   <div>
                     <h2 className={`text-2xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-[#051226]'}`}>
                       {profile.name}
                     </h2>
                     <p className={`text-sm font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                      {profile.rm} • Asma Bronkial &amp; PPOK Derajat 2
+                      {profile.rm} • {profile.condition || 'Pasien RespiCare'}
                     </p>
                   </div>
                 </div>
@@ -3146,7 +3373,7 @@ export default function App() {
                           <span className={`px-2.5 py-0.5 rounded-md font-mono text-xs font-bold border ${
                             isDark ? 'bg-amber-400/10 text-amber-300 border-amber-400/30' : 'bg-amber-100 text-amber-900 border-amber-300'
                           }`}>
-                            PIN 8492
+                            PIN {profile.pin || DEMO_PATIENT.pin}
                           </span>
                         </div>
                         <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600 font-medium'}`}>
@@ -3190,6 +3417,14 @@ export default function App() {
                     </div>
 
                     <div className="space-y-2.5 text-sm">
+                      {profile.birthPlace && (
+                        <div className={`flex items-center justify-between py-1 border-b ${borderSubtle}`}>
+                          <span className={isDark ? 'text-slate-400' : 'text-slate-600 font-medium'}>Tempat Lahir</span>
+                          <span className={`font-semibold ${isDark ? 'text-white' : 'text-[#051226]'}`}>
+                            {profile.birthPlace}
+                          </span>
+                        </div>
+                      )}
                       <div className={`flex items-center justify-between py-1 border-b ${borderSubtle}`}>
                         <span className={isDark ? 'text-slate-400' : 'text-slate-600 font-medium'}>Tanggal Lahir</span>
                         <span className={`font-semibold ${isDark ? 'text-white' : 'text-[#051226]'}`}>
@@ -3340,7 +3575,7 @@ export default function App() {
                 <span className="absolute inset-0 rounded-full bg-emerald-400/25 animate-ping" />
               )}
               <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-[#0d47a1] to-[#1976d2] text-white flex items-center justify-center text-3xl font-extrabold shadow-lg">
-                {callModal.targetName.charAt(0)}
+                {(callModal.targetName || 'P').charAt(0)}
               </div>
             </div>
 
