@@ -1,3 +1,4 @@
+import TrialAccountManager from './components/TrialAccountManager';
 import { syncAccountToSupabase, syncAllLocalAccountsToSupabase } from './lib/supabase';
 import React, { useState, useEffect } from 'react';
 import {
@@ -1584,6 +1585,8 @@ export default function Login({
           )}
         </div>
       </div>
+    
+      <TrialAccountManager />
     </div>
   );
 }
