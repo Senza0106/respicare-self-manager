@@ -128,7 +128,7 @@ export default function Login({
   };
 
   // Submit Register
-  const handleRegisterSubmit = (e) => {
+  const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     setRegisterError('');
     setRegisterSuccess('');
@@ -179,6 +179,8 @@ export default function Login({
 
       const updatedAccounts = [...savedAccounts, newPasienAccount];
       localStorage.setItem('respicare-accounts', JSON.stringify(updatedAccounts));
+      await syncAllLocalAccountsToSupabase();
+      await syncAccountToSupabase(newPasienAccount);
       syncAllLocalAccountsToSupabase();
 
       setRegisterSuccess(
@@ -291,6 +293,10 @@ export default function Login({
 
       updatedAccounts.push(newPendampingAccount);
       localStorage.setItem('respicare-accounts', JSON.stringify(updatedAccounts));
+      await syncAllLocalAccountsToSupabase();
+      await syncAccountToSupabase(newPendampingAccount);
+      const linkedPatient = updatedAccounts.find((a) => a.role === 'pasien' && a.rm?.toUpperCase() === cleanPairingCode);
+      if (linkedPatient) { await syncAccountToSupabase(linkedPatient); }
       syncAllLocalAccountsToSupabase();
 
       setRegisterSuccess(

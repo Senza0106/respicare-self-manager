@@ -1745,24 +1745,20 @@ export default function Dashboard({
                   </div>
 
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleStartCall(
-                          profile.name,
-                          profile.phone,
-                          'Mengingatkan jadwal terapi harian pasien'
-                        )
-                      }
-                      className={`px-4 py-2.5 font-bold text-sm rounded-xl flex items-center gap-2 shadow-md cursor-pointer transition-all ${
-                        isDark
-                          ? 'bg-[#4dd0e1] hover:brightness-110 text-[#051226]'
-                          : 'bg-[#0d47a1] hover:bg-[#1976d2] text-white'
-                      }`}
-                    >
-                      <PhoneCall className="w-4 h-4" />
-                      <span>Telepon Langsung</span>
-                    </button>
+                    <a
+                          href={`tel:${(profile.phone || '').replace(/[^0-9+]/g, '')}`}
+                          onClick={(e) => {
+                            const cleanTel = (profile.phone || '').replace(/[^0-9+]/g, '');
+                            if (!cleanTel) {
+                              e.preventDefault();
+                              alert('Nomor telepon pasien belum diisi pada profil medis.');
+                            }
+                          }}
+                          className="px-4 py-2.5 rounded-xl bg-[#4dd0e1] hover:bg-[#26c6da] text-[#051226] font-bold text-xs sm:text-sm inline-flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
+                        >
+                          <Phone className="w-4 h-4" />
+                          <span>Telepon Langsung</span>
+                        </a>
 
                     <a
                       href={`https://wa.me/62${(profile.phone || '').replace(/^0/, '')}`}

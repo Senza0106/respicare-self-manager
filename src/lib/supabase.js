@@ -1,19 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl =
+  import.meta.env.VITE_SUPABASE_URL || 'https://virpgbodcvhwpztamcra.supabase.co';
+const supabaseAnonKey =
+  import.meta.env.VITE_SUPABASE_ANON_KEY ||
+  'sb_publishable_4YrA3YOdTPXzxUPwYooVfA_O7sMh4UP';
 
-const isConfigured =
-  Boolean(supabaseUrl) &&
-  Boolean(supabaseAnonKey) &&
-  !supabaseUrl.includes('ISI-PROJECT-ID-ANDA');
-
-export const supabase = isConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null;
+export const supabase =
+  supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 export async function syncAccountToSupabase(account) {
-  if (!supabase || !account) return;
+  if (!supabase || !account) return false;
   try {
     const payload = {
       role: account.role || 'pasien',
@@ -27,12 +24,17 @@ export async function syncAccountToSupabase(account) {
       gender: account.gender || null,
       address: account.address || null,
       emergency_contact: account.emergencyContact || null,
-      updated_at: account.createdAt || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
     const { error } = await supabase.from('respicare_accounts').insert([payload]);
-    if (error) console.warn('Gagal simpan akun ke Supabase:', error.message);
+    if (error) {
+      console.error('Supabase insert account error:', error.message);
+      return false;
+    }
+    return true;
   } catch (err) {
-    console.warn('Supabase syncAccount dilewati:', err?.message || err);
+    console.error('Supabase syncAccount exception:', err);
+    return false;
   }
 }
 
@@ -43,32 +45,34 @@ export async function syncAllLocalAccountsToSupabase() {
     if (!Array.isArray(savedAccounts) || savedAccounts.length === 0) return;
 
     const syncedKeys = new Set(
-      JSON.parse(localStorage.getItem('respicare-supabase-synced-keys') || '[]')
+      JSON.parse(localStorage.getItem('respicare-supabase-synced-v3') || '[]')
     );
 
     let hasNew = false;
     for (const acc of savedAccounts) {
       const uniqueKey = `${acc.role || 'pasien'}:${(acc.email || '').toLowerCase()}:${(acc.rm || acc.pairingCode || '').toUpperCase()}:${acc.name || ''}`;
       if (!syncedKeys.has(uniqueKey)) {
-        await syncAccountToSupabase(acc);
-        syncedKeys.add(uniqueKey);
-        hasNew = true;
+        const ok = await syncAccountToSupabase(acc);
+        if (ok) {
+          syncedKeys.add(uniqueKey);
+          hasNew = true;
+        }
       }
     }
 
     if (hasNew) {
       localStorage.setItem(
-        'respicare-supabase-synced-keys',
+        'respicare-supabase-synced-v3',
         JSON.stringify(Array.from(syncedKeys))
       );
     }
   } catch (err) {
-    console.warn('Supabase syncAllLocalAccounts dilewati:', err?.message || err);
+    console.error('Supabase syncAllLocalAccounts error:', err);
   }
 }
 
 export async function logLoginToSupabase({ user, role, patientProfile, isDemo }) {
-  if (!supabase) return;
+  if (!supabase) return false;
   try {
     const isPendamping = role === 'pendamping';
     const payload = {
@@ -89,9 +93,14 @@ export async function logLoginToSupabase({ user, role, patientProfile, isDemo })
       logged_in_at: new Date().toISOString(),
     };
     const { error } = await supabase.from('respicare_login_logs').insert([payload]);
-    if (error) console.warn('Gagal simpan log login ke Supabase:', error.message);
+    if (error) {
+      console.error('Supabase insert login log error:', error.message);
+      return false;
+    }
+    return true;
   } catch (err) {
-    console.warn('Supabase logLogin dilewati:', err?.message || err);
+    console.error('Supabase logLogin exception:', err);
+    return false;
   }
 }
 
@@ -107,6 +116,6 @@ export async function syncSchedulesToSupabase(rm, schedules) {
       { onConflict: 'rm' }
     );
   } catch (err) {
-    console.warn('Supabase syncSchedules dilewati:', err?.message || err);
+    console.error('Supabase syncSchedules error:', err);
   }
 }
