@@ -27,29 +27,69 @@ export async function syncAccountToSupabase(account) {
       gender: account.gender || null,
       address: account.address || null,
       emergency_contact: account.emergencyContact || null,
-      updated_at: new Date().toISOString(),
+      updated_at: account.createdAt || new Date().toISOString(),
     };
-    await supabase.from('respicare_accounts').insert([payload]);
+    const { error } = await supabase.from('respicare_accounts').insert([payload]);
+    if (error) console.warn('Gagal simpan akun ke Supabase:', error.message);
   } catch (err) {
     console.warn('Supabase syncAccount dilewati:', err?.message || err);
+  }
+}
+
+export async function syncAllLocalAccountsToSupabase() {
+  if (!supabase) return;
+  try {
+    const savedAccounts = JSON.parse(localStorage.getItem('respicare-accounts') || '[]');
+    if (!Array.isArray(savedAccounts) || savedAccounts.length === 0) return;
+
+    const syncedKeys = new Set(
+      JSON.parse(localStorage.getItem('respicare-supabase-synced-keys') || '[]')
+    );
+
+    let hasNew = false;
+    for (const acc of savedAccounts) {
+      const uniqueKey = `${acc.role || 'pasien'}:${(acc.email || '').toLowerCase()}:${(acc.rm || acc.pairingCode || '').toUpperCase()}:${acc.name || ''}`;
+      if (!syncedKeys.has(uniqueKey)) {
+        await syncAccountToSupabase(acc);
+        syncedKeys.add(uniqueKey);
+        hasNew = true;
+      }
+    }
+
+    if (hasNew) {
+      localStorage.setItem(
+        'respicare-supabase-synced-keys',
+        JSON.stringify(Array.from(syncedKeys))
+      );
+    }
+  } catch (err) {
+    console.warn('Supabase syncAllLocalAccounts dilewati:', err?.message || err);
   }
 }
 
 export async function logLoginToSupabase({ user, role, patientProfile, isDemo }) {
   if (!supabase) return;
   try {
+    const isPendamping = role === 'pendamping';
     const payload = {
       role: role || 'pasien',
-      name: user?.name || patientProfile?.name || '-',
-      email: (user?.email || patientProfile?.email || '').toLowerCase() || null,
-      phone: user?.phone || patientProfile?.phone || patientProfile?.guardianPhone || null,
-      rm: patientProfile?.rm || user?.pairingCode || null,
+      name: isPendamping
+        ? user?.name || 'Pendamping'
+        : user?.name || patientProfile?.name || '-',
+      email: (
+        (isPendamping ? user?.email : user?.email || patientProfile?.email) || ''
+      ).toLowerCase() || null,
+      phone: isPendamping
+        ? user?.phone || patientProfile?.guardianPhone || null
+        : user?.phone || patientProfile?.phone || null,
+      rm: patientProfile?.rm || user?.pairingCode || user?.rm || null,
       patient_name: patientProfile?.name || '-',
       condition: patientProfile?.condition || null,
       is_demo: Boolean(isDemo),
       logged_in_at: new Date().toISOString(),
     };
-    await supabase.from('respicare_login_logs').insert([payload]);
+    const { error } = await supabase.from('respicare_login_logs').insert([payload]);
+    if (error) console.warn('Gagal simpan log login ke Supabase:', error.message);
   } catch (err) {
     console.warn('Supabase logLogin dilewati:', err?.message || err);
   }

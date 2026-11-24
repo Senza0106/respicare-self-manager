@@ -1,4 +1,4 @@
-import { logLoginToSupabase, syncAccountToSupabase, syncSchedulesToSupabase } from './lib/supabase';
+import { logLoginToSupabase, syncAccountToSupabase, syncAllLocalAccountsToSupabase, syncSchedulesToSupabase } from './lib/supabase';
 import React, { useState, useEffect } from 'react';
 import LandingPage from './components/LandingPage';
 import Login, { RespiCareLogo } from './Login';
@@ -169,6 +169,7 @@ const loadSchedulesForRm = (rm, isDemoUser) => {
 };
 
 export default function App() {
+  React.useEffect(() => { syncAllLocalAccountsToSupabase(); }, []);
   // Routing: 'landing' | 'login' | 'dashboard' (default landing)
   const [currentView, setCurrentView] = useState('landing');
 
@@ -232,7 +233,12 @@ export default function App() {
     const loadedSchedules = loadSchedulesForRm(patientProfile.rm, isDemoAccount);
     setSchedules(loadedSchedules);
     logLoginToSupabase({ user, role, patientProfile, isDemo: isDemoAccount });
-    syncAccountToSupabase({ ...(user || {}), ...patientProfile, role });
+    syncAllLocalAccountsToSupabase();
+    if (role === 'pendamping' && user) {
+      syncAccountToSupabase({ ...user, role: 'pendamping', pairingCode: patientProfile?.rm || user.pairingCode });
+    } else if (patientProfile) {
+      syncAccountToSupabase({ ...(user || {}), ...patientProfile, role: 'pasien' });
+    }
     syncSchedulesToSupabase(patientProfile?.rm, loadedSchedules);
     recordLoginAudit({ user, role, patientProfile, isDemoAccount });
 

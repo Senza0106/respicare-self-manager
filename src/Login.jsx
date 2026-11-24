@@ -1,4 +1,4 @@
-import { syncAccountToSupabase } from './lib/supabase';
+import { syncAccountToSupabase, syncAllLocalAccountsToSupabase } from './lib/supabase';
 import React, { useState, useEffect } from 'react';
 import {
   HeartPulse,
@@ -179,7 +179,7 @@ export default function Login({
 
       const updatedAccounts = [...savedAccounts, newPasienAccount];
       localStorage.setItem('respicare-accounts', JSON.stringify(updatedAccounts));
-      syncAccountToSupabase(registerRole === 'pasien' ? newPasienAccount : newPendampingAccount);
+      syncAllLocalAccountsToSupabase();
 
       setRegisterSuccess(
         `✓ Akun Pasien berhasil dibuat! No. RM Anda: ${generatedRm}. Salin dan berikan kode ini kepada Pendamping Keluarga Anda.`
@@ -291,7 +291,7 @@ export default function Login({
 
       updatedAccounts.push(newPendampingAccount);
       localStorage.setItem('respicare-accounts', JSON.stringify(updatedAccounts));
-      syncAccountToSupabase(registerRole === 'pasien' ? newPasienAccount : newPendampingAccount);
+      syncAllLocalAccountsToSupabase();
 
       setRegisterSuccess(
         `✓ Akun Pendamping berhasil dibuat! Data medis pasien ${cleanPairingCode} telah ditautkan dan disimpan.`
