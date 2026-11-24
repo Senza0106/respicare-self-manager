@@ -1,3 +1,4 @@
+import { logLoginToSupabase, syncAccountToSupabase, syncSchedulesToSupabase } from './lib/supabase';
 import React, { useState, useEffect } from 'react';
 import LandingPage from './components/LandingPage';
 import Login, { RespiCareLogo } from './Login';
@@ -66,6 +67,36 @@ const DEMO_PATIENT = {
   guardianPhone: '081234567890',
   pin: '8492',
   role: 'pasien',
+};
+
+const DEMO_GUARDIAN = {
+  name: 'Siti Rahayu (Pendamping Demo)',
+  email: 'pendamping.demo@respicare.id',
+  phone: '081234567890',
+  role: 'pendamping',
+  pairingCode: 'RM-2026-040',
+};
+
+const recordLoginAudit = ({ user, role, patientProfile, isDemoAccount }) => {
+  try {
+    const logs = JSON.parse(localStorage.getItem('respicare-login-logs') || '[]');
+    const entry = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      loggedInAt: new Date().toISOString(),
+      role,
+      name: user?.name || patientProfile?.name || '-',
+      email: user?.email || patientProfile?.email || '-',
+      phone: user?.phone || patientProfile?.phone || patientProfile?.guardianPhone || '-',
+      rm: patientProfile?.rm || user?.pairingCode || '-',
+      patientName: patientProfile?.name || '-',
+      condition: patientProfile?.condition || '-',
+      isDemo: Boolean(isDemoAccount),
+    };
+    const updated = [entry, ...logs].slice(0, 100);
+    localStorage.setItem('respicare-login-logs', JSON.stringify(updated));
+  } catch (e) {
+    console.warn('Gagal mencatat audit login:', e);
+  }
 };
 
 const DEMO_SCHEDULES = [
@@ -200,6 +231,10 @@ export default function App() {
 
     const loadedSchedules = loadSchedulesForRm(patientProfile.rm, isDemoAccount);
     setSchedules(loadedSchedules);
+    logLoginToSupabase({ user, role, patientProfile, isDemo: isDemoAccount });
+    syncAccountToSupabase({ ...(user || {}), ...patientProfile, role });
+    syncSchedulesToSupabase(patientProfile?.rm, loadedSchedules);
+    recordLoginAudit({ user, role, patientProfile, isDemoAccount });
 
     setCurrentView('dashboard');
     setToastMessage(
@@ -207,15 +242,42 @@ export default function App() {
     );
   };
 
-  // Handler Login Akun Demo
-  const handleDemoLogin = () => {
+  // Handler Login Akun Demo (2 Role: Pasien & Pendamping)
+  const handleDemoLogin = (role = 'pasien') => {
+    if (role === 'pendamping') {
+      setCurrentUser(DEMO_GUARDIAN);
+      setUserRole('pendamping');
+      setProfile(DEMO_PATIENT);
+      setIsDemo(true);
+      setSchedules(DEMO_SCHEDULES);
+      logLoginToSupabase({
+        user: DEMO_GUARDIAN,
+        role: 'pendamping',
+        patientProfile: DEMO_PATIENT,
+        isDemo: true,
+      });
+      syncAccountToSupabase(DEMO_GUARDIAN);
+      syncSchedulesToSupabase(DEMO_PATIENT.rm, DEMO_SCHEDULES);
+      setCurrentView('dashboard');
+      setToastMessage(`Selamat Datang (Demo Pendamping), ${DEMO_GUARDIAN.name}!`);
+      return;
+    }
+
     setCurrentUser(DEMO_PATIENT);
     setUserRole('pasien');
     setProfile(DEMO_PATIENT);
     setIsDemo(true);
     setSchedules(DEMO_SCHEDULES);
+    logLoginToSupabase({
+      user: DEMO_PATIENT,
+      role: 'pasien',
+      patientProfile: DEMO_PATIENT,
+      isDemo: true,
+    });
+    syncAccountToSupabase(DEMO_PATIENT);
+    syncSchedulesToSupabase(DEMO_PATIENT.rm, DEMO_SCHEDULES);
     setCurrentView('dashboard');
-    setToastMessage(`Selamat Datang (Demo), ${DEMO_PATIENT.name}! 👋`);
+    setToastMessage(`Selamat Datang (Demo Pasien), ${DEMO_PATIENT.name}!`);
   };
 
   // Handler Logout

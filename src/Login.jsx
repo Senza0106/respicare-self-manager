@@ -1,3 +1,4 @@
+import { syncAccountToSupabase } from './lib/supabase';
 import React, { useState, useEffect } from 'react';
 import {
   HeartPulse,
@@ -178,6 +179,7 @@ export default function Login({
 
       const updatedAccounts = [...savedAccounts, newPasienAccount];
       localStorage.setItem('respicare-accounts', JSON.stringify(updatedAccounts));
+      syncAccountToSupabase(registerRole === 'pasien' ? newPasienAccount : newPendampingAccount);
 
       setRegisterSuccess(
         `✓ Akun Pasien berhasil dibuat! No. RM Anda: ${generatedRm}. Salin dan berikan kode ini kepada Pendamping Keluarga Anda.`
@@ -289,6 +291,7 @@ export default function Login({
 
       updatedAccounts.push(newPendampingAccount);
       localStorage.setItem('respicare-accounts', JSON.stringify(updatedAccounts));
+      syncAccountToSupabase(registerRole === 'pasien' ? newPasienAccount : newPendampingAccount);
 
       setRegisterSuccess(
         `✓ Akun Pendamping berhasil dibuat! Data medis pasien ${cleanPairingCode} telah ditautkan dan disimpan.`
@@ -1233,18 +1236,41 @@ export default function Login({
                   isDark ? 'border-white/10' : 'border-slate-200'
                 }`}
               >
-                <button
-                  type="button"
-                  onClick={onDemoLogin}
-                  className={`w-full py-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                    isDark
-                      ? 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10'
-                      : 'bg-slate-50 border-slate-300 text-slate-600 hover:bg-slate-100 font-semibold'
-                  }`}
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Masuk dengan Akun Demo</span>
-                </button>
+                <div className="space-y-2">
+                  <p
+                    className={`text-[11px] text-center font-semibold ${
+                      isDark ? 'text-slate-400' : 'text-slate-500'
+                    }`}
+                  >
+                    Akses Cepat Akun Demo (Pilih Peran):
+                  </p>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => onDemoLogin('pasien')}
+                      className={`py-2.5 px-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                        isDark
+                          ? 'bg-[#4dd0e1]/10 border-[#4dd0e1]/30 text-[#4dd0e1] hover:bg-[#4dd0e1]/20'
+                          : 'bg-blue-50 border-blue-200 text-[#0d47a1] hover:bg-blue-100'
+                      }`}
+                    >
+                      <User className="w-3.5 h-3.5 shrink-0" />
+                      <span>Demo Pasien</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDemoLogin('pendamping')}
+                      className={`py-2.5 px-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                        isDark
+                          ? 'bg-emerald-400/10 border-emerald-400/30 text-emerald-300 hover:bg-emerald-400/20'
+                          : 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100'
+                      }`}
+                    >
+                      <Users className="w-3.5 h-3.5 shrink-0" />
+                      <span>Demo Pendamping</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           ) : (
@@ -1512,18 +1538,41 @@ export default function Login({
                   isDark ? 'border-white/10' : 'border-slate-200'
                 }`}
               >
-                <button
-                  type="button"
-                  onClick={onDemoLogin}
-                  className={`w-full py-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                    isDark
-                      ? 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10'
-                      : 'bg-slate-50 border-slate-300 text-slate-600 hover:bg-slate-100 font-semibold'
-                  }`}
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Masuk dengan Akun Demo</span>
-                </button>
+                <div className="space-y-2">
+                  <p
+                    className={`text-[11px] text-center font-semibold ${
+                      isDark ? 'text-slate-400' : 'text-slate-500'
+                    }`}
+                  >
+                    Akses Cepat Akun Demo (Pilih Peran):
+                  </p>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => onDemoLogin('pasien')}
+                      className={`py-2.5 px-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                        isDark
+                          ? 'bg-[#4dd0e1]/10 border-[#4dd0e1]/30 text-[#4dd0e1] hover:bg-[#4dd0e1]/20'
+                          : 'bg-blue-50 border-blue-200 text-[#0d47a1] hover:bg-blue-100'
+                      }`}
+                    >
+                      <User className="w-3.5 h-3.5 shrink-0" />
+                      <span>Demo Pasien</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDemoLogin('pendamping')}
+                      className={`py-2.5 px-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                        isDark
+                          ? 'bg-emerald-400/10 border-emerald-400/30 text-emerald-300 hover:bg-emerald-400/20'
+                          : 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100'
+                      }`}
+                    >
+                      <Users className="w-3.5 h-3.5 shrink-0" />
+                      <span>Demo Pendamping</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}

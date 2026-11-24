@@ -18,6 +18,11 @@ import {
   ShieldCheck,
   Activity,
   FileDown,
+  Printer,
+  FileSpreadsheet,
+  Database,
+  Lock,
+  X,
   RotateCcw,
   Sun,
   Moon,
@@ -98,8 +103,26 @@ export default function Dashboard({
   });
   const callTimerRef = useRef(null);
 
-  // Logout Modal
+  // Logout Modal & Developer DB Inspector
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showDevDbModal, setShowDevDbModal] = useState(false);
+  const [devPinInput, setDevPinInput] = useState('');
+  const [devUnlocked, setDevUnlocked] = useState(false);
+  const [devPinError, setDevPinError] = useState('');
+  const [devTapCount, setDevTapCount] = useState(0);
+
+  useEffect(() => {
+    const handleSecretShortcut = (e) => {
+      if ((e.ctrlKey || e.altKey) && e.shiftKey && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        setDevPinError('');
+        setShowDevDbModal(true);
+      }
+    };
+    window.addEventListener('keydown', handleSecretShortcut);
+    return () => window.removeEventListener('keydown', handleSecretShortcut);
+  }, []);
+  const [lastTriggeredMinute, setLastTriggeredMinute] = useState('');
   const [copiedPairing, setCopiedPairing] = useState(false);
 
   // Password Change State
@@ -173,26 +196,43 @@ export default function Dashboard({
     }
     const medName = alarmModal.med?.name || 'Obat';
     setAlarmModal({ isOpen: false, med: null });
-    setToastMessage(`⏰ Alarm "${medName}" ditunda selama 5 menit.`);
+    setToastMessage(`Alarm "${medName}" ditunda selama 5 menit.`);
   };
+
+  // Cek jadwal obat otomatis setiap 10 detik
+  useEffect(() => {
+    const checker = setInterval(() => {
+      const now = new Date();
+      const hhmm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      if (hhmm === lastTriggeredMinute) return;
+      const due = schedules.find((s) => s.status !== 'Sudah Minum' && s.time === hhmm);
+      if (due) {
+        setLastTriggeredMinute(hhmm);
+        triggerAlarmSound(due);
+      }
+    }, 10000);
+    return () => clearInterval(checker);
+  }, [schedules, lastTriggeredMinute]);
 
   // ==========================================================
   // CALL ACTIONS
   // ==========================================================
   const handleStartCall = (targetName, targetPhone, reason) => {
-    setCallModal({
-      isOpen: true,
-      targetName: targetName || 'Kontak',
-      targetPhone: targetPhone || '-',
-      callReason: reason,
-      duration: 0,
-      isConnected: false,
-      isMuted: false,
-      isSpeakerOn: true,
-    });
-    setTimeout(() => {
-      setCallModal((prev) => ({ ...prev, isConnected: true }));
-    }, 1200);
+    let waPhone = String(targetPhone || '').replace(/\D/g, '');
+    if (!waPhone) {
+      setToastMessage('Nomor telepon belum diatur. Lengkapi di menu Profil terlebih dahulu.');
+      return;
+    }
+    if (waPhone.startsWith('0')) {
+      waPhone = '62' + waPhone.slice(1);
+    } else if (!waPhone.startsWith('62')) {
+      waPhone = '62' + waPhone;
+    }
+    const msg = encodeURIComponent(
+      `Halo ${targetName || 'Pendamping/Pasien'}, saya menghubungi melalui RespiCare Self-Manager (${profile.name || 'Pasien'} - ${profile.rm || 'RM-2026'}) terkait: ${reason || 'Konsultasi Terapi Pernapasan'}.`
+    );
+    window.open(`https://wa.me/${waPhone}?text=${msg}`, '_blank', 'noopener,noreferrer');
+    setToastMessage(`Membuka WhatsApp (${targetName || waPhone})...`);
   };
 
   useEffect(() => {
@@ -643,7 +683,7 @@ export default function Dashboard({
           </div>
 
           {/* Tombol Tes Alarm Audio */}
-          {schedules.length > 0 && (
+          {true && (
             <div className={`mt-6 pt-4 border-t ${borderLight}`}>
               <button
                 type="button"
@@ -663,6 +703,7 @@ export default function Dashboard({
 
         {/* Bottom Sidebar: Theme & Profile Card */}
         <div className={`space-y-3 pt-4 border-t ${borderLight}`}>
+          
           <button
             type="button"
             onClick={toggleTheme}
@@ -711,7 +752,20 @@ export default function Dashboard({
                     isDark ? 'text-slate-400' : 'text-slate-600 font-medium'
                   }`}
                 >
-                  {profile.rm || 'No. RM'}
+                  <span
+                    onClick={() => {
+                      const next = devTapCount + 1;
+                      if (next >= 7) {
+                        setDevTapCount(0);
+                        setDevPinError('');
+                        setShowDevDbModal(true);
+                      } else {
+                        setDevTapCount(next);
+                      }
+                    }}
+                  >
+                    {profile.rm || 'No. RM'}
+                  </span>
                 </p>
               </div>
             </div>
@@ -736,14 +790,14 @@ export default function Dashboard({
       <div className="flex-1 lg:pl-64 flex flex-col min-h-screen">
         {/* Top Navbar Mobile & Tablet */}
         <header
-          className={`lg:hidden sticky top-0 z-30 px-4 py-3 flex items-center justify-between backdrop-blur-xl border-b ${
+          className={`lg:hidden sticky top-0 z-30 px-3 sm:px-4 py-2.5 flex items-center justify-between gap-2 backdrop-blur-xl border-b ${
             isDark
               ? 'bg-[#051226]/90 border-[#00acc1]/20'
               : 'bg-white/95 border-slate-200 shadow-sm'
           }`}
         >
           <RespiCareLogo isDark={isDark} size="sm" />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 shrink-0">
             <span
               className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${
                 isDark
@@ -1690,7 +1744,7 @@ export default function Dashboard({
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       type="button"
                       onClick={() =>
@@ -1927,7 +1981,7 @@ export default function Dashboard({
                   className={`rounded-2xl p-6 space-y-4 ${cardBg}`}
                 >
                   <div className="flex items-center justify-between pb-3 border-b borderLight">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <User
                         className={`w-5 h-5 ${isDark ? 'text-[#4dd0e1]' : 'text-[#0d47a1]'}`}
                       />
@@ -2105,7 +2159,7 @@ export default function Dashboard({
                   {/* KARTU KODE PAIRING KELUARGA (HANYA MENYALIN RM BERSIH) */}
                   <div className={`rounded-2xl p-6 space-y-4 border ${cardBg}`}>
                     <div className="flex items-center justify-between pb-3 border-b borderLight">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         <div
                           className={`w-8 h-8 rounded-lg flex items-center justify-center border ${
                             isDark
@@ -2529,6 +2583,11 @@ export default function Dashboard({
           </div>
         </div>
       )}
+
+      {/* ============================================================ */}
+      {/* MODAL DEVELOPER DATABASE INSPECTOR (PIN: DEV-2026)           */}
+      {/* ============================================================ */}
+      
 
       {/* ============================================================ */}
       {/* 6. MODAL LOGOUT                                              */}
