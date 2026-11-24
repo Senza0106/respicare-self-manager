@@ -1746,9 +1746,10 @@ export default function Dashboard({
 
                   <div className="flex items-center gap-1.5 shrink-0">
                     <a
-                          href={`tel:${(profile.phone || '').replace(/[^0-9+]/g, '')}`}
+                          href={`tel:${(profile?.phone || '').replace(/[^0-9+]/g, '')}`}
                           onClick={(e) => {
-                            const cleanTel = (profile.phone || '').replace(/[^0-9+]/g, '');
+                            e.stopPropagation();
+                            const cleanTel = (profile?.phone || '').replace(/[^0-9+]/g, '');
                             if (!cleanTel) {
                               e.preventDefault();
                               alert('Nomor telepon pasien belum diisi pada profil medis.');
