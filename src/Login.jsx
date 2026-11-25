@@ -180,7 +180,7 @@ export default function Login({
 
       const updatedAccounts = [...savedAccounts, newPasienAccount];
       localStorage.setItem('respicare-accounts', JSON.stringify(updatedAccounts));
-      await syncAllLocalAccountsToSupabase();
+      
       await syncAccountToSupabase(newPasienAccount);
       syncAllLocalAccountsToSupabase();
 
@@ -294,7 +294,7 @@ export default function Login({
 
       updatedAccounts.push(newPendampingAccount);
       localStorage.setItem('respicare-accounts', JSON.stringify(updatedAccounts));
-      await syncAllLocalAccountsToSupabase();
+      
       await syncAccountToSupabase(newPendampingAccount);
       const linkedPatient = updatedAccounts.find((a) => a.role === 'pasien' && a.rm?.toUpperCase() === cleanPairingCode);
       if (linkedPatient) { await syncAccountToSupabase(linkedPatient); }

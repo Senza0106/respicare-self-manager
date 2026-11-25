@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Trash2, RefreshCw, Database, X, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Trash2, RefreshCw, Database, X, AlertTriangle, CheckCircle2, Sparkles } from 'lucide-react';
 import {
   fetchSupabaseAccounts,
   deleteAccountEverywhere,
   resetAllTrialAccounts,
+  deduplicateSupabaseAccounts,
 } from '../lib/supabase';
 
 export default function TrialAccountManager() {
@@ -15,7 +16,6 @@ export default function TrialAccountManager() {
   const tapCountRef = useRef(0);
   const tapTimerRef = useRef(null);
 
-  // Akses tersembunyi: Ctrl + Shift + H atau ketuk logo/judul RespiCare 5x
   useEffect(() => {
     const handleKeyDown = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'h') {
@@ -52,9 +52,9 @@ export default function TrialAccountManager() {
     };
   }, []);
 
-  const loadAllAccounts = async () => {
+  const loadAllAccounts = async (keepMessage = false) => {
     setLoading(true);
-    setStatusMsg(null);
+    if (!keepMessage) setStatusMsg(null);
 
     const { data: sbData, error: sbError } = await fetchSupabaseAccounts();
     if (sbError) {
@@ -121,6 +121,27 @@ export default function TrialAccountManager() {
     }
   }, [isOpen]);
 
+  const handleCleanDuplicates = async () => {
+    setLoading(true);
+    const res = await deduplicateSupabaseAccounts();
+    if (!res.ok) {
+      setStatusMsg({
+        type: 'error',
+        text: `Gagal membersihkan duplikat: ${res.error}`,
+      });
+    } else {
+      setStatusMsg({
+        type: 'success',
+        text:
+          res.removed > 0
+            ? `${res.removed} data akun duplikat berhasil dibersihkan. Setiap akun kini tersisa 1 baris.`
+            : 'Tidak ditemukan data duplikat. Semua akun sudah unik.',
+      });
+    }
+    await loadAllAccounts(true);
+    setLoading(false);
+  };
+
   const handleDeleteOne = async (acc) => {
     setDeletingKey(acc.key);
     const res = await deleteAccountEverywhere({
@@ -132,7 +153,7 @@ export default function TrialAccountManager() {
     if (!res.ok) {
       setStatusMsg({
         type: 'error',
-        text: `Gagal menghapus di Supabase (${res.error}). Jalankan policy "for all to anon" di SQL Editor Supabase.`,
+        text: `Gagal menghapus di Supabase (${res.error}).`,
       });
     } else {
       setStatusMsg({
@@ -141,7 +162,7 @@ export default function TrialAccountManager() {
       });
     }
 
-    await loadAllAccounts();
+    await loadAllAccounts(true);
     setDeletingKey(null);
   };
 
@@ -162,7 +183,7 @@ export default function TrialAccountManager() {
         text: 'Seluruh data akun berhasil dihapus.',
       });
     }
-    await loadAllAccounts();
+    await loadAllAccounts(true);
     setLoading(false);
   };
 
@@ -171,7 +192,6 @@ export default function TrialAccountManager() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
       <div className="w-full max-w-2xl rounded-2xl bg-[#0b192c] border border-slate-700 text-slate-100 shadow-2xl overflow-hidden">
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800 bg-[#081322]">
           <div className="flex items-center gap-2.5">
             <Database className="w-5 h-5 text-cyan-400" />
@@ -180,7 +200,7 @@ export default function TrialAccountManager() {
                 Kelola & Hapus Akun
               </h3>
               <p className="text-xs text-slate-400">
-                Hapus akun terdaftar dari Supabase dan penyimpanan lokal
+                Hapus akun terdaftar atau bersihkan data ganda di Supabase
               </p>
             </div>
           </div>
@@ -193,7 +213,6 @@ export default function TrialAccountManager() {
           </button>
         </div>
 
-        {/* Body */}
         <div className="p-5 max-h-[70vh] overflow-y-auto space-y-4">
           {statusMsg && (
             <div
@@ -214,18 +233,29 @@ export default function TrialAccountManager() {
 
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-xs text-slate-400">
-              Total terdaftar: <strong className="text-white">{accounts.length}</strong> akun
+              Total baris tercatat: <strong className="text-white">{accounts.length}</strong>
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={loadAllAccounts}
+                onClick={() => loadAllAccounts(false)}
                 disabled={loading}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 cursor-pointer"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
                 <span>Refresh</span>
               </button>
+              {accounts.length > 1 && (
+                <button
+                  type="button"
+                  onClick={handleCleanDuplicates}
+                  disabled={loading}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Bersihkan Duplikat</span>
+                </button>
+              )}
               {accounts.length > 0 && (
                 <button
                   type="button"

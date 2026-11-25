@@ -9,16 +9,28 @@ const supabaseAnonKey =
 export const supabase =
   supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
+const inFlightSyncKeys = new Set();
+
 export async function syncAccountToSupabase(account) {
   if (!supabase || !account) return false;
+
+  const role = account.role || 'pasien';
+  const cleanEmail = (account.email || '').trim().toLowerCase();
+  const cleanRm = (account.rm || account.pairingCode || '').trim().toUpperCase();
+  const lockKey = `${role}:${cleanEmail}:${cleanRm}:${account.name || ''}`;
+
+  // Cegah pengiriman ganda secara bersamaan dalam hitungan milidetik
+  if (inFlightSyncKeys.has(lockKey)) return true;
+  inFlightSyncKeys.add(lockKey);
+
   try {
     const payload = {
-      role: account.role || 'pasien',
+      role,
       name: account.name || '-',
-      email: (account.email || '').toLowerCase() || null,
+      email: cleanEmail || null,
       phone: account.phone || account.guardianPhone || null,
-      rm: account.rm || account.pairingCode || null,
-      pairing_code: account.pairingCode || account.rm || null,
+      rm: cleanRm || null,
+      pairing_code: (account.pairingCode || account.rm || '').trim().toUpperCase() || null,
       condition: account.condition || null,
       age: account.age || null,
       gender: account.gender || null,
@@ -26,6 +38,49 @@ export async function syncAccountToSupabase(account) {
       emergency_contact: account.emergencyContact || null,
       updated_at: new Date().toISOString(),
     };
+
+    // Cek apakah akun dengan role & email (atau role & RM) yang sama sudah ada di Supabase
+    let existingRows = [];
+    if (cleanEmail) {
+      const { data } = await supabase
+        .from('respicare_accounts')
+        .select('id')
+        .eq('role', role)
+        .ilike('email', cleanEmail)
+        .order('id', { ascending: true });
+      if (Array.isArray(data)) existingRows = data;
+    } else if (cleanRm) {
+      const { data } = await supabase
+        .from('respicare_accounts')
+        .select('id')
+        .eq('role', role)
+        .eq('rm', cleanRm)
+        .order('id', { ascending: true });
+      if (Array.isArray(data)) existingRows = data;
+    }
+
+    if (existingRows.length > 0) {
+      // Update baris pertama yang sudah ada
+      const keepId = existingRows[0].id;
+      const { error } = await supabase
+        .from('respicare_accounts')
+        .update(payload)
+        .eq('id', keepId);
+
+      // Hapus otomatis jika ada baris duplikat ekstra
+      if (existingRows.length > 1) {
+        const extraIds = existingRows.slice(1).map((r) => r.id);
+        await supabase.from('respicare_accounts').delete().in('id', extraIds);
+      }
+
+      if (error) {
+        console.error('Supabase update account error:', error.message);
+        return false;
+      }
+      return true;
+    }
+
+    // Jika belum ada sama sekali, barulah insert 1 baris baru
     const { error } = await supabase.from('respicare_accounts').insert([payload]);
     if (error) {
       console.error('Supabase insert account error:', error.message);
@@ -35,6 +90,8 @@ export async function syncAccountToSupabase(account) {
   } catch (err) {
     console.error('Supabase syncAccount exception:', err);
     return false;
+  } finally {
+    setTimeout(() => inFlightSyncKeys.delete(lockKey), 1500);
   }
 }
 
@@ -45,7 +102,7 @@ export async function syncAllLocalAccountsToSupabase() {
     if (!Array.isArray(savedAccounts) || savedAccounts.length === 0) return;
 
     const syncedKeys = new Set(
-      JSON.parse(localStorage.getItem('respicare-supabase-synced-v3') || '[]')
+      JSON.parse(localStorage.getItem('respicare-supabase-synced-v4') || '[]')
     );
 
     let hasNew = false;
@@ -62,12 +119,52 @@ export async function syncAllLocalAccountsToSupabase() {
 
     if (hasNew) {
       localStorage.setItem(
-        'respicare-supabase-synced-v3',
+        'respicare-supabase-synced-v4',
         JSON.stringify(Array.from(syncedKeys))
       );
     }
   } catch (err) {
     console.error('Supabase syncAllLocalAccounts error:', err);
+  }
+}
+
+export async function deduplicateSupabaseAccounts() {
+  if (!supabase) return { ok: false, removed: 0, error: 'Supabase belum terkonfigurasi' };
+  try {
+    const { data, error } = await supabase
+      .from('respicare_accounts')
+      .select('id, role, email, rm, name')
+      .order('id', { ascending: true });
+
+    if (error) return { ok: false, removed: 0, error: error.message };
+
+    const seen = new Set();
+    const duplicateIds = [];
+
+    (data || []).forEach((row) => {
+      const role = (row.role || 'pasien').toLowerCase();
+      const email = (row.email || '').trim().toLowerCase();
+      const rm = (row.rm || '').trim().toUpperCase();
+      const sig = email ? `${role}:email:${email}` : `${role}:rm:${rm}:${row.name || ''}`;
+
+      if (seen.has(sig)) {
+        duplicateIds.push(row.id);
+      } else {
+        seen.add(sig);
+      }
+    });
+
+    if (duplicateIds.length > 0) {
+      const { error: delErr } = await supabase
+        .from('respicare_accounts')
+        .delete()
+        .in('id', duplicateIds);
+      if (delErr) return { ok: false, removed: 0, error: delErr.message };
+    }
+
+    return { ok: true, removed: duplicateIds.length, error: null };
+  } catch (err) {
+    return { ok: false, removed: 0, error: err?.message || 'Gagal membersihkan duplikat' };
   }
 }
 
@@ -90,7 +187,6 @@ export async function deleteAccountEverywhere({ id, email, rm }) {
   const cleanRm = (rm || '').trim().toUpperCase();
   let supabaseError = null;
 
-  // 1. Hapus dari Supabase (berdasarkan ID dan/atau Email agar duplikat ikut bersih)
   if (supabase) {
     try {
       if (id) {
@@ -112,7 +208,6 @@ export async function deleteAccountEverywhere({ id, email, rm }) {
     }
   }
 
-  // 2. Hapus dari localStorage agar email bisa langsung dipakai daftar ulang
   try {
     const localAccounts = JSON.parse(localStorage.getItem('respicare-accounts') || '[]');
     if (Array.isArray(localAccounts)) {
@@ -126,8 +221,7 @@ export async function deleteAccountEverywhere({ id, email, rm }) {
       localStorage.setItem('respicare-accounts', JSON.stringify(filtered));
     }
 
-    // Bersihkan penanda sinkronisasi untuk email/RM tersebut
-    ['respicare-supabase-synced-v3', 'respicare-supabase-synced-v2', 'respicare-supabase-synced-keys'].forEach((key) => {
+    ['respicare-supabase-synced-v4', 'respicare-supabase-synced-v3', 'respicare-supabase-synced-v2', 'respicare-supabase-synced-keys'].forEach((key) => {
       const raw = localStorage.getItem(key);
       if (raw) {
         const arr = JSON.parse(raw);
@@ -163,6 +257,7 @@ export async function resetAllTrialAccounts() {
   }
 
   localStorage.removeItem('respicare-accounts');
+  localStorage.removeItem('respicare-supabase-synced-v4');
   localStorage.removeItem('respicare-supabase-synced-v3');
   localStorage.removeItem('respicare-supabase-synced-v2');
   localStorage.removeItem('respicare-supabase-synced-keys');

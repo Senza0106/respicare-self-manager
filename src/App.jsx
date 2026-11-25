@@ -184,7 +184,7 @@ const normalizeDailySchedules = (list) => {
   });
 };
 export default function App() {
-  React.useEffect(() => { syncAllLocalAccountsToSupabase(); }, []);
+  
 
   React.useEffect(() => {
     let timerId;
