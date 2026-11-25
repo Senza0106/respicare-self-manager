@@ -930,7 +930,7 @@ export default function Dashboard({
                   </div>
 
                   {/* 4 Kartu Statistik Pasien (0 untuk Akun Baru) */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     {[
                       {
                         label: 'Jadwal Hari Ini',
@@ -1058,7 +1058,7 @@ export default function Dashboard({
                       </div>
                     ) : (
                       /* LIST JADWAL PASIEN (READ-ONLY) */
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
                         {schedules.map((med) => {
                           const isTaken = med.status === 'Sudah Minum';
                           const isInhaler = med.type === 'Inhaler';
@@ -1549,7 +1549,7 @@ export default function Dashboard({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label
                       className={`block text-xs uppercase tracking-wider mb-2 ${
@@ -1971,7 +1971,7 @@ export default function Dashboard({
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="grid grid-cols-2 gap-5">
                 {/* FORM DATA PASIEN */}
                 <form
                   onSubmit={handleSaveProfileByPendamping}
