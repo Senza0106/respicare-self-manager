@@ -168,8 +168,41 @@ const loadSchedulesForRm = (rm, isDemoUser) => {
   }
 };
 
+const getTodayDateKey = () => new Date().toLocaleDateString('en-CA');
+
+const normalizeDailySchedules = (list) => {
+  if (!Array.isArray(list)) return [];
+  const today = getTodayDateKey();
+  return list.map((item) => {
+    const takenDate = item.lastTakenDate || (item.taken ? today : null);
+    const isTakenToday = Boolean(item.taken && takenDate === today);
+    return {
+      ...item,
+      taken: isTakenToday,
+      lastTakenDate: isTakenToday ? takenDate : null,
+    };
+  });
+};
 export default function App() {
   React.useEffect(() => { syncAllLocalAccountsToSupabase(); }, []);
+
+  React.useEffect(() => {
+    let timerId;
+    const scheduleMidnightReset = () => {
+      const now = new Date();
+      const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1, 0);
+      const msUntilMidnight = Math.max(1000, nextMidnight.getTime() - now.getTime());
+
+      timerId = setTimeout(() => {
+        setSchedules((prev) => normalizeDailySchedules(prev));
+        scheduleMidnightReset();
+      }, msUntilMidnight);
+    };
+
+    setSchedules((prev) => normalizeDailySchedules(prev));
+    scheduleMidnightReset();
+    return () => clearTimeout(timerId);
+  }, []);
   // Routing: 'landing' | 'login' | 'dashboard' (default landing)
   const [currentView, setCurrentView] = useState('landing');
 
