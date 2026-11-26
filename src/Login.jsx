@@ -346,32 +346,77 @@ export default function Login({
     );
 
     if (!isDemoUser && !registeredUser) {
-      // Cek apakah akun terdaftar di peran berbeda di localStorage
-      const diffRoleLocal = (JSON.parse(localStorage.getItem('respicare-accounts') || '[]')).find(
-        (a) => (a.email || '').trim().toLowerCase() === (email || '').trim().toLowerCase() &&
-               String(a.password || '').trim() === (password || '').trim()
-      );
-      if (diffRoleLocal) {
-        setPairingError('Akun ini terdaftar sebagai ' + (diffRoleLocal.role === 'pendamping' ? 'Pendamping' : 'Pasien') + '. Silakan pindah tab peran di atas.');
-        return;
-      }
+      try {
+        const formEl = e?.currentTarget;
+        const emailField = formEl?.querySelector('input[type="email" name="respicare_login_email" autoComplete="off" readOnly onFocus={(e) => e.currentTarget.removeAttribute("readOnly")}]');
+        const passField = formEl?.querySelector('input[data-password-input], input[type="password"]');
+        const typedEmail = (emailField?.value || '').trim().toLowerCase();
+        const typedPass = (passField?.value || '').trim();
+        const submitBtnText = (formEl?.querySelector('button[type="submit"]')?.textContent || '').toLowerCase();
+        const selectedRole = submitBtnText.includes('pendamping') ? 'pendamping' : 'pasien';
 
-      // Cek autentikasi langsung ke database Supabase (lintas perangkat / domain)
-      const sbAuth = await authenticateWithSupabase({
-        email: email,
-        password: password,
-        role: loginRole,
-      });
-      if (sbAuth.ok && sbAuth.account) {
-        const cachedList = JSON.parse(localStorage.getItem('respicare-accounts') || '[]');
-        cachedList.push(sbAuth.account);
-        localStorage.setItem('respicare-accounts', JSON.stringify(cachedList));
-        onLogin({ user: sbAuth.account, role: sbAuth.account.role, isDemo: false });
-        return;
-      }
-      if (sbAuth.reason === 'wrong_role') {
-        setPairingError('Akun ini terdaftar sebagai ' + (sbAuth.actualRole === 'pendamping' ? 'Pendamping' : 'Pasien') + '. Silakan pindah tab peran di atas.');
-        return;
+        const localList = JSON.parse(localStorage.getItem('respicare-accounts') || '[]');
+        const exactLocal = localList.find(
+          (a) =>
+            (a.role || 'pasien') === selectedRole &&
+            (a.email || '').trim().toLowerCase() === typedEmail &&
+            String(a.password || '').trim() === typedPass
+        );
+        if (exactLocal) {
+          const linkedLocalPatient =
+            selectedRole === 'pendamping'
+              ? localList.find(
+                  (a) =>
+                    a.role === 'pasien' &&
+                    (a.rm || '').toUpperCase() === (exactLocal.pairingCode || exactLocal.rm || '').toUpperCase()
+                ) || null
+              : exactLocal;
+          onLogin({
+            user: exactLocal,
+            role: selectedRole,
+            patientProfile: linkedLocalPatient,
+            isDemo: false,
+          });
+          return;
+        }
+
+        const diffRoleLocal = localList.find(
+          (a) =>
+            (a.email || '').trim().toLowerCase() === typedEmail &&
+            String(a.password || '').trim() === typedPass
+        );
+        if (diffRoleLocal) {
+          setPairingError('Akun ini terdaftar sebagai ' + (diffRoleLocal.role === 'pendamping' ? 'Pendamping' : 'Pasien') + '. Silakan pindah tab peran di atas.');
+          return;
+        }
+
+        const sbAuth = await authenticateWithSupabase({
+          email: typedEmail,
+          password: typedPass,
+          role: selectedRole,
+        });
+        if (sbAuth.ok && sbAuth.account) {
+          const updatedCache = [...localList, sbAuth.account];
+          if (sbAuth.linkedPatient) updatedCache.push(sbAuth.linkedPatient);
+          localStorage.setItem('respicare-accounts', JSON.stringify(updatedCache));
+
+          onLogin({
+            user: sbAuth.account,
+            role: sbAuth.account.role || selectedRole,
+            patientProfile:
+              (sbAuth.account.role || selectedRole) === 'pasien'
+                ? sbAuth.account
+                : sbAuth.linkedPatient || null,
+            isDemo: false,
+          });
+          return;
+        }
+        if (sbAuth.reason === 'wrong_role') {
+          setPairingError('Akun ini terdaftar sebagai ' + (sbAuth.actualRole === 'pendamping' ? 'Pendamping' : 'Pasien') + '. Silakan pindah tab peran di atas.');
+          return;
+        }
+      } catch (loginErr) {
+        console.error('Login verification error:', loginErr);
       }
       setPairingError('Email atau kata sandi tidak cocok. Silakan periksa kembali.');
       return;
@@ -758,7 +803,7 @@ export default function Login({
               {/* ALUR 1: DAFTAR PASIEN (SUPER SIMPEL — HANYA 4 KOLOM) */}
               {/* ==================================================== */}
               {registerRole === 'pasien' ? (
-                <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
+                <form autoComplete="off" onSubmit={handleRegisterSubmit} className="space-y-3.5">
                   <div>
                     <label
                       className={`block text-xs uppercase tracking-wider mb-1.5 ${
@@ -791,7 +836,7 @@ export default function Login({
                       Email <span className="text-red-500 font-bold">*</span>
                     </label>
                     <input
-                      type="email"
+                      type="email" name="respicare_login_email" autoComplete="off" readOnly onFocus={(e) => e.currentTarget.removeAttribute("readOnly")}
                       required
                       value={pasienRegisterForm.email}
                       onChange={(e) =>
@@ -917,7 +962,7 @@ export default function Login({
                 /* ==================================================== */
                 /* ALUR 2: DAFTAR PENDAMPING KELUARGA (LENGKAP + MEDIS) */
                 /* ==================================================== */
-                <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
+                <form autoComplete="off" onSubmit={handleRegisterSubmit} className="space-y-3.5">
                   <div className="space-y-3">
                     <p
                       className={`text-xs font-bold uppercase tracking-wider ${
@@ -982,7 +1027,7 @@ export default function Login({
                         Email Pendamping <span className="text-red-500 font-bold">*</span>
                       </label>
                       <input
-                        type="email"
+                        type="email" name="respicare_login_email" autoComplete="off" readOnly onFocus={(e) => e.currentTarget.removeAttribute("readOnly")}
                         required
                         value={pendampingRegisterForm.email}
                         onChange={(e) =>
@@ -1382,7 +1427,7 @@ export default function Login({
               </div>
 
               {/* Form Inputs */}
-              <form onSubmit={handleLoginSubmit} className="space-y-4">
+              <form autoComplete="off" onSubmit={handleLoginSubmit} className="space-y-4">
                 <div>
                   <label
                     className={`block text-xs uppercase tracking-wider mb-2 ${
@@ -1392,7 +1437,7 @@ export default function Login({
                     Email Akun
                   </label>
                   <input
-                    type="email"
+                    type="email" name="respicare_login_email" autoComplete="off" readOnly onFocus={(e) => e.currentTarget.removeAttribute("readOnly")}
                     required
                     value={loginForm.email}
                     onChange={(e) =>
@@ -1413,7 +1458,7 @@ export default function Login({
                   </label>
                   <div className="relative">
                     <input
-                      type={showPassword ? 'text' : 'password'}
+                      type={showPassword ? "text" : "password"} data-password-input="true" name="respicare_login_pass" autoComplete="new-password" readOnly onFocus={(e) => e.currentTarget.removeAttribute("readOnly")}
                       required
                       value={loginForm.password}
                       onChange={(e) =>

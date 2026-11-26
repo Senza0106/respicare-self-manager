@@ -122,8 +122,35 @@ export async function authenticateWithSupabase({ email, password, role }) {
     );
 
     if (exactMatch) {
+      let linkedPatient = null;
+      const code = (exactMatch.pairing_code || exactMatch.rm || '').trim().toUpperCase();
+      if ((exactMatch.role || role) === 'pendamping' && code) {
+        const { data: pRows } = await supabase
+          .from('respicare_accounts')
+          .select('*')
+          .eq('role', 'pasien')
+          .eq('rm', code)
+          .limit(1);
+        if (Array.isArray(pRows) && pRows.length > 0) {
+          const p = pRows[0];
+          linkedPatient = {
+            role: 'pasien',
+            name: p.name || `Pasien ${code}`,
+            email: p.email || '',
+            phone: p.phone || '',
+            rm: p.rm || code,
+            condition: p.condition || 'Asma Bronkial',
+            age: p.age || '18',
+            gender: p.gender || 'Laki-laki',
+            address: p.address || 'Kediri, Jawa Timur',
+            emergencyContact: p.emergency_contact || '',
+          };
+        }
+      }
+
       return {
         ok: true,
+        linkedPatient,
         account: {
           role: exactMatch.role || role,
           name: exactMatch.name || '-',
