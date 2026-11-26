@@ -1862,7 +1862,7 @@ export default function Dashboard({
                               'DEFAULT'
                           ).toUpperCase();
 
-                          const historyStorageKey = `respicare-compliance-history-v5-${rmKey}`;
+                          const historyStorageKey = `respicare-compliance-history-v6-${rmKey}`;
 
                           let storedHistory = {};
                           try {
@@ -1871,12 +1871,46 @@ export default function Dashboard({
                             storedHistory = {};
                           }
 
-                          const totalToday = Number(0) || 0;
-                          const takenToday = Number(0) || 0;
-                          const missedToday = Number(0) || 0;
+                          const activeList =
+                            typeof schedules !== 'undefined' && Array.isArray(schedules)
+                              ? schedules
+                              : [];
+
+                          const isTakenItem = (s) =>
+                            Boolean(
+                              s &&
+                                (s.taken === true ||
+                                  s.isTaken === true ||
+                                  s.completed === true ||
+                                  s.done === true ||
+                                  s.status === 'taken' ||
+                                  s.status === 'diminum' ||
+                                  s.status === 'completed' ||
+                                  Boolean(s.takenAt))
+                            );
+
+                          const fallbackTotal = activeList.length;
+                          const fallbackTaken = activeList.filter(isTakenItem).length;
+
+                          const rawTotal = Number(totalSchedules);
+                          const rawTaken = Number(completedCount);
+                          const rawMissed = Number(NaN);
+                          const rawPct = Number(NaN);
+
+                          const totalToday =
+                            !Number.isNaN(rawTotal) && rawTotal > 0 ? rawTotal : fallbackTotal;
+                          const takenToday =
+                            !Number.isNaN(rawTaken) && (rawTaken > 0 || rawTotal > 0)
+                              ? rawTaken
+                              : fallbackTaken;
+                          const missedToday = !Number.isNaN(rawMissed)
+                            ? rawMissed
+                            : Math.max(0, totalToday - takenToday);
                           const pctToday =
                             totalToday > 0
-                              ? Number(0) || Math.round((takenToday / totalToday) * 100)
+                              ? !Number.isNaN(rawPct) && (rawPct > 0 || takenToday === 0)
+                                ? rawPct
+                                : Math.round((takenToday / totalToday) * 100)
                               : 0;
 
                           storedHistory[todayKey] = {
