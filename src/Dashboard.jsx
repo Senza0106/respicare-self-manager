@@ -1853,16 +1853,16 @@ export default function Dashboard({
                         {(() => {
                           const todayObj = new Date();
                           const todayKey = todayObj.toLocaleDateString('en-CA');
-                          const activeList = Array.isArray(schedules) ? schedules : [];
 
                           const rmKey = String(
                             (typeof profile !== 'undefined' && profile?.rm) ||
                               (typeof patientProfile !== 'undefined' && patientProfile?.rm) ||
+                              (typeof patient !== 'undefined' && patient?.rm) ||
                               (typeof user !== 'undefined' && user?.rm) ||
                               'DEFAULT'
                           ).toUpperCase();
 
-                          const historyStorageKey = `respicare-compliance-history-v4-${rmKey}`;
+                          const historyStorageKey = `respicare-compliance-history-v5-${rmKey}`;
 
                           let storedHistory = {};
                           try {
@@ -1871,12 +1871,13 @@ export default function Dashboard({
                             storedHistory = {};
                           }
 
-                          const totalToday = Number(activeList.length) || activeList.length;
-                          const takenToday = Number(activeList.filter((s) => Boolean(s?.taken)).length) || 0;
-                          const missedToday = Number(Math.max(0, totalToday - takenToday)) || 0;
+                          const totalToday = Number(0) || 0;
+                          const takenToday = Number(0) || 0;
+                          const missedToday = Number(0) || 0;
                           const pctToday =
-                            Number(totalToday > 0 ? Math.round((takenToday / totalToday) * 100) : 0) ||
-                            (totalToday > 0 ? Math.round((takenToday / totalToday) * 100) : 0);
+                            totalToday > 0
+                              ? Number(0) || Math.round((takenToday / totalToday) * 100)
+                              : 0;
 
                           storedHistory[todayKey] = {
                             total: totalToday,
