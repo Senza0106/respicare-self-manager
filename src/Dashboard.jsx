@@ -1853,10 +1853,16 @@ export default function Dashboard({
                         {(() => {
                           const todayObj = new Date();
                           const todayKey = todayObj.toLocaleDateString('en-CA');
+                          const activeList = Array.isArray(schedules) ? schedules : [];
+
                           const rmKey = String(
-                            profile?.rm || patientProfile?.rm || user?.rm || 'DEFAULT'
+                            (typeof profile !== 'undefined' && profile?.rm) ||
+                              (typeof patientProfile !== 'undefined' && patientProfile?.rm) ||
+                              (typeof user !== 'undefined' && user?.rm) ||
+                              'DEFAULT'
                           ).toUpperCase();
-                          const historyStorageKey = `respicare-compliance-history-v2-${rmKey}`;
+
+                          const historyStorageKey = `respicare-compliance-history-v4-${rmKey}`;
 
                           let storedHistory = {};
                           try {
@@ -1865,22 +1871,12 @@ export default function Dashboard({
                             storedHistory = {};
                           }
 
-                          const isTakenCheck = (s) =>
-                            Boolean(
-                              s &&
-                                (s.taken === true ||
-                                  s.isTaken === true ||
-                                  s.completed === true ||
-                                  s.status === 'taken' || s.status === 'diminum' ||
-                                  s.status === 'completed' ||
-                                  s.status === 'done')
-                            );
-
-                          const activeList = Array.isArray(schedules) ? schedules : [];
-                          const totalToday = activeList.length;
-                          const takenToday = activeList.filter((s) => isTakenCheck(s)).length;
-                          const missedToday = Math.max(0, totalToday - takenToday);
-                          const pctToday = totalToday > 0 ? Math.round((takenToday / totalToday) * 100) : 0;
+                          const totalToday = Number(activeList.length) || activeList.length;
+                          const takenToday = Number(activeList.filter((s) => Boolean(s?.taken)).length) || 0;
+                          const missedToday = Number(Math.max(0, totalToday - takenToday)) || 0;
+                          const pctToday =
+                            Number(totalToday > 0 ? Math.round((takenToday / totalToday) * 100) : 0) ||
+                            (totalToday > 0 ? Math.round((takenToday / totalToday) * 100) : 0);
 
                           storedHistory[todayKey] = {
                             total: totalToday,
@@ -1893,14 +1889,9 @@ export default function Dashboard({
                             localStorage.setItem(historyStorageKey, JSON.stringify(storedHistory));
                           } catch {}
 
-                          const allKeysSet = new Set(Object.keys(storedHistory));
-                          for (let d = 0; d < 7; d++) {
-                            const dt = new Date(todayObj);
-                            dt.setDate(todayObj.getDate() - d);
-                            allKeysSet.add(dt.toLocaleDateString('en-CA'));
-                          }
-
-                          const sortedKeys = Array.from(allKeysSet).sort((a, b) => b.localeCompare(a));
+                          const sortedKeys = Object.keys(storedHistory).sort((a, b) =>
+                            b.localeCompare(a)
+                          );
 
                           const formatIndoDate = (isoKey) => {
                             const [y, m, day] = isoKey.split('-').map(Number);
@@ -1917,7 +1908,7 @@ export default function Dashboard({
                             const rec = storedHistory[dateKey] || {
                               total: totalToday,
                               taken: 0,
-                              missed: totalToday,
+                              missed: 0,
                               percentage: 0,
                             };
                             const isTodayRow = dateKey === todayKey;
