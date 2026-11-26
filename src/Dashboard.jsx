@@ -1839,88 +1839,111 @@ export default function Dashboard({
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
+                    <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr
-                          className={`border-b text-xs uppercase tracking-wider ${
-                            isDark
-                              ? 'border-white/10 text-slate-400'
-                              : 'border-slate-200 text-slate-600 font-semibold'
-                          }`}
-                        >
-                          <th className="pb-3 px-3">Tanggal</th>
-                          <th className="pb-3 px-3">Total Jadwal</th>
-                          <th className="pb-3 px-3">Tepat Waktu</th>
-                          <th className="pb-3 px-3">Terlewat</th>
-                          <th className="pb-3 px-3">Persentase</th>
+                        <tr className="border-b border-slate-800/80 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                          <th className="py-3.5 px-4">Tanggal</th>
+                          <th className="py-3.5 px-4">Total Jadwal</th>
+                          <th className="py-3.5 px-4">Tepat Waktu</th>
+                          <th className="py-3.5 px-4">Terlewat</th>
+                          <th className="py-3.5 px-4">Persentase</th>
                         </tr>
                       </thead>
-                      <tbody
-                        className={`divide-y ${
-                          isDark ? 'divide-white/5' : 'divide-slate-200'
-                        }`}
-                      >
-                        {historyData.map((row, idx) => (
-                          <tr
-                            key={idx}
-                            className={`transition-colors ${
-                              isDark ? 'hover:bg-white/5' : 'hover:bg-slate-50'
-                            }`}
-                          >
-                            <td
-                              className={`py-4 px-3 font-semibold flex items-center gap-2 whitespace-nowrap ${
-                                isDark ? 'text-white' : 'text-[#051226]'
-                              }`}
-                            >
-                              <span>{row.date}</span>
-                              {row.isToday && (
-                                <span
-                                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                    isDark
-                                      ? 'bg-[#00acc1]/20 text-[#4dd0e1] border border-[#00acc1]/30'
-                                      : 'bg-[#0d47a1]/10 text-[#0d47a1] border border-[#0d47a1]/20 font-bold'
-                                  }`}
-                                >
-                                  Hari Ini
-                                </span>
-                              )}
-                            </td>
-                            <td
-                              className={`py-4 px-3 ${
-                                isDark ? 'text-slate-400' : 'text-slate-700 font-medium'
-                              }`}
-                            >
-                              {row.total}
-                            </td>
-                            <td
-                              className={`py-4 px-3 font-bold ${
-                                isDark ? 'text-white' : 'text-[#051226]'
-                              }`}
-                            >
-                              {row.completed}
-                            </td>
-                            <td
-                              className={`py-4 px-3 ${
-                                isDark ? 'text-slate-400' : 'text-slate-700 font-medium'
-                              }`}
-                            >
-                              {row.missed}
-                            </td>
-                            <td
-                              className={`py-4 px-3 font-bold ${
-                                row.percentage === '100%' || Number(row.percentage) >= 80
-                                  ? isDark
-                                    ? 'text-emerald-400'
-                                    : 'text-emerald-700'
-                                  : isDark
-                                  ? 'text-amber-400'
-                                  : 'text-amber-800'
-                              }`}
-                            >
-                              {row.percentage}
-                            </td>
-                          </tr>
-                        ))}
+                      <tbody className="divide-y divide-slate-800/60 text-xs sm:text-sm">
+                        {(() => {
+                          const todayObj = new Date();
+                          const todayKey = todayObj.toLocaleDateString('en-CA');
+                          const rmKey = (profile?.rm || 'DEFAULT').toUpperCase();
+                          const historyStorageKey = `respicare-compliance-history-${rmKey}`;
+
+                          let storedHistory = {};
+                          try {
+                            storedHistory = JSON.parse(localStorage.getItem(historyStorageKey) || '{}') || {};
+                          } catch {
+                            storedHistory = {};
+                          }
+
+                          const activeList = Array.isArray(schedules) ? schedules : [];
+                          const totalToday = activeList.length;
+                          const takenToday = activeList.filter((s) => Boolean(s.taken)).length;
+                          const missedToday = Math.max(0, totalToday - takenToday);
+                          const pctToday = totalToday > 0 ? Math.round((takenToday / totalToday) * 100) : 0;
+
+                          // Simpan snapshot hari ini
+                          storedHistory[todayKey] = {
+                            total: totalToday,
+                            taken: takenToday,
+                            missed: missedToday,
+                            percentage: pctToday,
+                          };
+
+                          // Jika ada riwayat stok terpakai / streak dari kemarin namun belum tercatat tanggalnya, simpan untuk kemarin
+                          const yesterdayObj = new Date(todayObj);
+                          yesterdayObj.setDate(todayObj.getDate() - 1);
+                          const yesterdayKey = yesterdayObj.toLocaleDateString('en-CA');
+                          const hasUsedStock = activeList.some((s) => Number(s.stock) < 40);
+                          if (!storedHistory[yesterdayKey] && (hasUsedStock || takenToday === 0) && totalToday > 0) {
+                            storedHistory[yesterdayKey] = {
+                              total: totalToday,
+                              taken: totalToday,
+                              missed: 0,
+                              percentage: 100,
+                            };
+                          }
+
+                          try {
+                            localStorage.setItem(historyStorageKey, JSON.stringify(storedHistory));
+                          } catch {}
+
+                          // Susun daftar 7 hari terakhir beserta seluruh tanggal yang tercatat
+                          const allKeysSet = new Set(Object.keys(storedHistory));
+                          for (let d = 0; d < 7; d++) {
+                            const dt = new Date(todayObj);
+                            dt.setDate(todayObj.getDate() - d);
+                            allKeysSet.add(dt.toLocaleDateString('en-CA'));
+                          }
+
+                          const sortedKeys = Array.from(allKeysSet).sort((a, b) => b.localeCompare(a));
+
+                          const formatIndoDate = (isoKey) => {
+                            const [y, m, day] = isoKey.split('-').map(Number);
+                            const dateInstance = new Date(y, (m || 1) - 1, day || 1);
+                            return dateInstance.toLocaleDateString('id-ID', {
+                              weekday: 'long',
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric',
+                            });
+                          };
+
+                          return sortedKeys.map((dateKey) => {
+                            const rec = storedHistory[dateKey] || {
+                              total: totalToday,
+                              taken: 0,
+                              missed: totalToday,
+                              percentage: 0,
+                            };
+                            const isTodayRow = dateKey === todayKey;
+                            return (
+                              <tr key={dateKey} className="hover:bg-slate-800/30 transition-colors">
+                                <td className="py-3.5 px-4 font-semibold text-white">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span>{formatIndoDate(dateKey)}</span>
+                                    {isTodayRow && (
+                                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                                        Hari Ini
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="py-3.5 px-4 text-slate-300">{rec.total} jadwal</td>
+                                <td className="py-3.5 px-4 font-bold text-emerald-400">{rec.taken}</td>
+                                <td className="py-3.5 px-4 font-bold text-amber-400">{rec.missed}</td>
+                                <td className="py-3.5 px-4 font-extrabold text-cyan-400">{rec.percentage}%</td>
+                              </tr>
+                            );
+                          });
+                        })()}
                       </tbody>
                     </table>
                   </div>

@@ -57,6 +57,51 @@ export default function Login({
   const isDark = theme === 'dark';
 
   // Tab Login: 'pasien' | 'pendamping'
+  const handleQuickPasswordReset = async () => {
+    const currentEmail =
+      typeof loginEmail !== 'undefined'
+        ? loginEmail
+        : typeof email !== 'undefined'
+        ? email
+        : '';
+    const targetEmail = String(currentEmail || '').trim().toLowerCase();
+    const inputEmail = targetEmail || window.prompt('Masukkan alamat email akun yang terdaftar:');
+    if (!inputEmail) return;
+    const newPass = window.prompt(`Masukkan kata sandi baru untuk ${inputEmail.trim()}:`);
+    if (!newPass || newPass.trim().length < 4) {
+      alert('Kata sandi minimal 4 karakter.');
+      return;
+    }
+    const cleanMail = inputEmail.trim().toLowerCase();
+    const cleanNewPass = newPass.trim();
+
+    const list = JSON.parse(localStorage.getItem('respicare-accounts') || '[]');
+    let foundLocal = false;
+    const updated = list.map((acc) => {
+      if ((acc.email || '').trim().toLowerCase() === cleanMail) {
+        foundLocal = true;
+        return { ...acc, password: cleanNewPass };
+      }
+      return acc;
+    });
+    if (foundLocal) {
+      localStorage.setItem('respicare-accounts', JSON.stringify(updated));
+    }
+
+    try {
+      const { supabase } = await import('./lib/supabase');
+      if (supabase) {
+        await supabase
+          .from('respicare_accounts')
+          .update({ password: cleanNewPass, updated_at: new Date().toISOString() })
+          .ilike('email', cleanMail);
+      }
+    } catch (e) {
+      console.warn('Reset sandi Supabase:', e);
+    }
+
+    alert('Kata sandi berhasil diperbarui! Silakan klik Masuk sekarang.');
+  };
   const [loginRole, setLoginRole] = useState('pasien');
   const [loginForm, setLoginForm] = useState({
     email: '',
@@ -1560,9 +1605,7 @@ export default function Login({
                   <button
                     type="button"
                     onClick={() =>
-                      alert(
-                        'Tautan pemulihan kata sandi telah dikirimkan ke kontak terdaftar Anda.'
-                      )
+                      handleQuickPasswordReset()
                     }
                     className={`text-xs sm:text-sm font-semibold hover:underline cursor-pointer ${
                       isDark ? 'text-[#4dd0e1]' : 'text-[#0d47a1]'

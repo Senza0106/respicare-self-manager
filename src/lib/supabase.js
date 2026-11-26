@@ -114,48 +114,29 @@ export async function authenticateWithSupabase({ email, password, role }) {
       return { ok: false, reason: 'not_found' };
     }
 
-    // Cek kecocokan role dan password
-    const exactMatch = data.find(
-      (row) =>
-        (row.role || 'pasien') === role &&
-        String(row.password || '').trim() === cleanPassword
-    );
+    // 1. Cek kecocokan role + password (atau jika password di Supabase masih NULL pada akun lama, otomatis simpan password baru)
+    const exactMatch = data.find((row) => {
+      const sameRole = (row.role || 'pasien') === role;
+      const dbPass = String(row.password || '').trim();
+      return sameRole && (dbPass === cleanPassword || dbPass === '');
+    });
 
     if (exactMatch) {
-      let linkedPatient = null;
-      const code = (exactMatch.pairing_code || exactMatch.rm || '').trim().toUpperCase();
-      if ((exactMatch.role || role) === 'pendamping' && code) {
-        const { data: pRows } = await supabase
+      // Jika kolom password di Supabase sebelumnya kosong (NULL), simpan password ini secara permanen
+      if (!exactMatch.password || String(exactMatch.password).trim() === '') {
+        await supabase
           .from('respicare_accounts')
-          .select('*')
-          .eq('role', 'pasien')
-          .eq('rm', code)
-          .limit(1);
-        if (Array.isArray(pRows) && pRows.length > 0) {
-          const p = pRows[0];
-          linkedPatient = {
-            role: 'pasien',
-            name: p.name || `Pasien ${code}`,
-            email: p.email || '',
-            phone: p.phone || '',
-            rm: p.rm || code,
-            condition: p.condition || 'Asma Bronkial',
-            age: p.age || '18',
-            gender: p.gender || 'Laki-laki',
-            address: p.address || 'Kediri, Jawa Timur',
-            emergencyContact: p.emergency_contact || '',
-          };
-        }
+          .update({ password: cleanPassword, updated_at: new Date().toISOString() })
+          .eq('id', exactMatch.id);
       }
 
       return {
         ok: true,
-        linkedPatient,
         account: {
           role: exactMatch.role || role,
           name: exactMatch.name || '-',
           email: exactMatch.email || cleanEmail,
-          password: exactMatch.password || cleanPassword,
+          password: cleanPassword,
           phone: exactMatch.phone || '',
           guardianPhone: exactMatch.role === 'pendamping' ? exactMatch.phone || '' : '',
           rm: exactMatch.rm || exactMatch.pairing_code || '',
@@ -169,10 +150,11 @@ export async function authenticateWithSupabase({ email, password, role }) {
       };
     }
 
-    // Cek apakah email & password cocok tetapi terdaftar di role lain
-    const otherRoleMatch = data.find(
-      (row) => String(row.password || '').trim() === cleanPassword
-    );
+    // 2. Cek apakah email cocok tetapi terdaftar di peran berbeda
+    const otherRoleMatch = data.find((row) => {
+      const dbPass = String(row.password || '').trim();
+      return dbPass === cleanPassword || dbPass === '';
+    });
     if (otherRoleMatch) {
       return {
         ok: false,

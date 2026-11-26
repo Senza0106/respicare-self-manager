@@ -182,6 +182,35 @@ const normalizeDailySchedules = (list) => {
     };
   });
 };
+// Bersihkan status minum obat dari hari sebelumnya saat aplikasi dimuat (stok tetap dipertahankan)
+(() => {
+  try {
+    const todayKey = new Date().toLocaleDateString('en-CA');
+    for (let i = 0; i < localStorage.length; i++) {
+      const storageKey = localStorage.key(i);
+      if (storageKey && storageKey.toLowerCase().includes('schedule')) {
+        const raw = localStorage.getItem(storageKey);
+        if (!raw) continue;
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          let changed = false;
+          const cleaned = parsed.map((item) => {
+            if (item && typeof item === 'object' && item.taken && item.lastTakenDate !== todayKey) {
+              changed = true;
+              return { ...item, taken: false, lastTakenDate: null };
+            }
+            return item;
+          });
+          if (changed) {
+            localStorage.setItem(storageKey, JSON.stringify(cleaned));
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Skip pre-clean schedules:', e);
+  }
+})();
 export default function App() {
   
 
