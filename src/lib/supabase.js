@@ -19,7 +19,6 @@ export async function syncAccountToSupabase(account) {
   const cleanRm = (account.rm || account.pairingCode || '').trim().toUpperCase();
   const lockKey = `${role}:${cleanEmail}:${cleanRm}:${account.name || ''}`;
 
-  // Cegah pengiriman ganda secara bersamaan dalam hitungan milidetik
   if (inFlightSyncKeys.has(lockKey)) return true;
   inFlightSyncKeys.add(lockKey);
 
@@ -39,12 +38,16 @@ export async function syncAccountToSupabase(account) {
       updated_at: new Date().toISOString(),
     };
 
-    // Cek apakah akun dengan role & email (atau role & RM) yang sama sudah ada di Supabase
+    // Simpan password jika tersedia agar tidak menimpa password lama dengan null
+    if (account.password && String(account.password).trim() !== '') {
+      payload.password = String(account.password).trim();
+    }
+
     let existingRows = [];
     if (cleanEmail) {
       const { data } = await supabase
         .from('respicare_accounts')
-        .select('id')
+        .select('id, password')
         .eq('role', role)
         .ilike('email', cleanEmail)
         .order('id', { ascending: true });
@@ -52,7 +55,7 @@ export async function syncAccountToSupabase(account) {
     } else if (cleanRm) {
       const { data } = await supabase
         .from('respicare_accounts')
-        .select('id')
+        .select('id, password')
         .eq('role', role)
         .eq('rm', cleanRm)
         .order('id', { ascending: true });
@@ -60,14 +63,15 @@ export async function syncAccountToSupabase(account) {
     }
 
     if (existingRows.length > 0) {
-      // Update baris pertama yang sudah ada
       const keepId = existingRows[0].id;
+      if (!payload.password && existingRows[0].password) {
+        payload.password = existingRows[0].password;
+      }
       const { error } = await supabase
         .from('respicare_accounts')
         .update(payload)
         .eq('id', keepId);
 
-      // Hapus otomatis jika ada baris duplikat ekstra
       if (existingRows.length > 1) {
         const extraIds = existingRows.slice(1).map((r) => r.id);
         await supabase.from('respicare_accounts').delete().in('id', extraIds);
@@ -80,7 +84,6 @@ export async function syncAccountToSupabase(account) {
       return true;
     }
 
-    // Jika belum ada sama sekali, barulah insert 1 baris baru
     const { error } = await supabase.from('respicare_accounts').insert([payload]);
     if (error) {
       console.error('Supabase insert account error:', error.message);
@@ -92,6 +95,69 @@ export async function syncAccountToSupabase(account) {
     return false;
   } finally {
     setTimeout(() => inFlightSyncKeys.delete(lockKey), 1500);
+  }
+}
+
+export async function authenticateWithSupabase({ email, password, role }) {
+  if (!supabase) return { ok: false, reason: 'not_configured' };
+  const cleanEmail = (email || '').trim().toLowerCase();
+  const cleanPassword = (password || '').trim();
+  if (!cleanEmail || !cleanPassword) return { ok: false, reason: 'empty' };
+
+  try {
+    const { data, error } = await supabase
+      .from('respicare_accounts')
+      .select('*')
+      .ilike('email', cleanEmail);
+
+    if (error || !Array.isArray(data) || data.length === 0) {
+      return { ok: false, reason: 'not_found' };
+    }
+
+    // Cek kecocokan role dan password
+    const exactMatch = data.find(
+      (row) =>
+        (row.role || 'pasien') === role &&
+        String(row.password || '').trim() === cleanPassword
+    );
+
+    if (exactMatch) {
+      return {
+        ok: true,
+        account: {
+          role: exactMatch.role || role,
+          name: exactMatch.name || '-',
+          email: exactMatch.email || cleanEmail,
+          password: exactMatch.password || cleanPassword,
+          phone: exactMatch.phone || '',
+          guardianPhone: exactMatch.role === 'pendamping' ? exactMatch.phone || '' : '',
+          rm: exactMatch.rm || exactMatch.pairing_code || '',
+          pairingCode: exactMatch.pairing_code || exactMatch.rm || '',
+          condition: exactMatch.condition || 'Asma Bronkial',
+          age: exactMatch.age || '18',
+          gender: exactMatch.gender || 'Laki-laki',
+          address: exactMatch.address || 'Kediri, Jawa Timur',
+          emergencyContact: exactMatch.emergency_contact || '',
+        },
+      };
+    }
+
+    // Cek apakah email & password cocok tetapi terdaftar di role lain
+    const otherRoleMatch = data.find(
+      (row) => String(row.password || '').trim() === cleanPassword
+    );
+    if (otherRoleMatch) {
+      return {
+        ok: false,
+        reason: 'wrong_role',
+        actualRole: otherRoleMatch.role || 'pasien',
+      };
+    }
+
+    return { ok: false, reason: 'wrong_password' };
+  } catch (err) {
+    console.error('Supabase auth exception:', err);
+    return { ok: false, reason: 'error' };
   }
 }
 

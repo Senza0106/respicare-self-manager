@@ -1,5 +1,5 @@
 import TrialAccountManager from './components/TrialAccountManager';
-import { syncAccountToSupabase, syncAllLocalAccountsToSupabase } from './lib/supabase';
+import { syncAccountToSupabase, syncAllLocalAccountsToSupabase , authenticateWithSupabase } from './lib/supabase';
 import React, { useState, useEffect } from 'react';
 import {
   HeartPulse,
@@ -326,7 +326,7 @@ export default function Login({
   };
 
   // Submit Login
-  const handleLoginSubmit = (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setPairingError('');
 
@@ -346,6 +346,33 @@ export default function Login({
     );
 
     if (!isDemoUser && !registeredUser) {
+      // Cek apakah akun terdaftar di peran berbeda di localStorage
+      const diffRoleLocal = (JSON.parse(localStorage.getItem('respicare-accounts') || '[]')).find(
+        (a) => (a.email || '').trim().toLowerCase() === (email || '').trim().toLowerCase() &&
+               String(a.password || '').trim() === (password || '').trim()
+      );
+      if (diffRoleLocal) {
+        setPairingError('Akun ini terdaftar sebagai ' + (diffRoleLocal.role === 'pendamping' ? 'Pendamping' : 'Pasien') + '. Silakan pindah tab peran di atas.');
+        return;
+      }
+
+      // Cek autentikasi langsung ke database Supabase (lintas perangkat / domain)
+      const sbAuth = await authenticateWithSupabase({
+        email: email,
+        password: password,
+        role: loginRole,
+      });
+      if (sbAuth.ok && sbAuth.account) {
+        const cachedList = JSON.parse(localStorage.getItem('respicare-accounts') || '[]');
+        cachedList.push(sbAuth.account);
+        localStorage.setItem('respicare-accounts', JSON.stringify(cachedList));
+        onLogin({ user: sbAuth.account, role: sbAuth.account.role, isDemo: false });
+        return;
+      }
+      if (sbAuth.reason === 'wrong_role') {
+        setPairingError('Akun ini terdaftar sebagai ' + (sbAuth.actualRole === 'pendamping' ? 'Pendamping' : 'Pasien') + '. Silakan pindah tab peran di atas.');
+        return;
+      }
       setPairingError('Email atau kata sandi tidak cocok. Silakan periksa kembali.');
       return;
     }

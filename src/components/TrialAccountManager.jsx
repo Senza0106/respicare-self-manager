@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Trash2, RefreshCw, Database, X, AlertTriangle, CheckCircle2, Sparkles } from 'lucide-react';
+import { Trash2, RefreshCw, Database, X, AlertTriangle, CheckCircle2, Sparkles, KeyRound } from 'lucide-react';
 import {
   fetchSupabaseAccounts,
   deleteAccountEverywhere,
@@ -60,7 +60,7 @@ export default function TrialAccountManager() {
     if (sbError) {
       setStatusMsg({
         type: 'error',
-        text: `Catatan Supabase: ${sbError}. Pastikan policy DELETE sudah aktif di SQL Editor.`,
+        text: `Catatan Supabase: ${sbError}.`,
       });
     }
 
@@ -72,20 +72,28 @@ export default function TrialAccountManager() {
       localData = [];
     }
 
+    // Peta password lokal sebagai cadangan jika kolom password di Supabase masih kosong untuk akun lama
+    const localPassMap = new Map();
+    localData.forEach((item) => {
+      const k = `${item.role || 'pasien'}:${(item.email || '').trim().toLowerCase()}`;
+      if (item.password) localPassMap.set(k, item.password);
+    });
+
     const merged = [];
     const seen = new Set();
 
     (sbData || []).forEach((item) => {
-      const emailKey = (item.email || '').toLowerCase();
-      const rmKey = (item.rm || item.pairing_code || '').toUpperCase();
-      const uniqueKey = `sb-${item.id}`;
-      seen.add(`${item.role || 'pasien'}:${emailKey}:${rmKey}`);
+      const emailKey = (item.email || '').trim().toLowerCase();
+      const rmKey = (item.rm || item.pairing_code || '').trim().toUpperCase();
+      const sig = `${item.role || 'pasien'}:${emailKey}`;
+      seen.add(`${sig}:${rmKey}`);
       merged.push({
-        key: uniqueKey,
+        key: `sb-${item.id}`,
         id: item.id,
         role: item.role || 'pasien',
         name: item.name || '-',
         email: item.email || '',
+        password: item.password || localPassMap.get(sig) || '',
         phone: item.phone || '-',
         rm: item.rm || item.pairing_code || '-',
         source: 'Supabase',
@@ -93,8 +101,8 @@ export default function TrialAccountManager() {
     });
 
     localData.forEach((item, idx) => {
-      const emailKey = (item.email || '').toLowerCase();
-      const rmKey = (item.rm || item.pairingCode || '').toUpperCase();
+      const emailKey = (item.email || '').trim().toLowerCase();
+      const rmKey = (item.rm || item.pairingCode || '').trim().toUpperCase();
       const signature = `${item.role || 'pasien'}:${emailKey}:${rmKey}`;
       if (!seen.has(signature)) {
         seen.add(signature);
@@ -104,6 +112,7 @@ export default function TrialAccountManager() {
           role: item.role || 'pasien',
           name: item.name || '-',
           email: item.email || '',
+          password: item.password || '',
           phone: item.phone || item.guardianPhone || '-',
           rm: item.rm || item.pairingCode || '-',
           source: 'Browser Lokal',
@@ -134,8 +143,8 @@ export default function TrialAccountManager() {
         type: 'success',
         text:
           res.removed > 0
-            ? `${res.removed} data akun duplikat berhasil dibersihkan. Setiap akun kini tersisa 1 baris.`
-            : 'Tidak ditemukan data duplikat. Semua akun sudah unik.',
+            ? `${res.removed} data akun duplikat berhasil dibersihkan.`
+            : 'Tidak ditemukan data duplikat.',
       });
     }
     await loadAllAccounts(true);
@@ -158,7 +167,7 @@ export default function TrialAccountManager() {
     } else {
       setStatusMsg({
         type: 'success',
-        text: `Akun ${acc.email || acc.name} berhasil dihapus. Email tersebut kini bisa dipakai daftar ulang.`,
+        text: `Akun ${acc.email || acc.name} berhasil dihapus.`,
       });
     }
 
@@ -200,7 +209,7 @@ export default function TrialAccountManager() {
                 Kelola & Hapus Akun
               </h3>
               <p className="text-xs text-slate-400">
-                Hapus akun terdaftar atau bersihkan data ganda di Supabase
+                Lihat email, kata sandi terdaftar, atau hapus akun dari database
               </p>
             </div>
           </div>
@@ -305,6 +314,13 @@ export default function TrialAccountManager() {
                     </div>
                     <div className="text-xs text-slate-300 truncate">
                       Email: <span className="text-cyan-300">{acc.email || '(Tanpa email)'}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-slate-300">
+                      <KeyRound className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span>Kata Sandi:</span>
+                      <span className="font-mono font-semibold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                        {acc.password || '(Belum tersimpan di cloud)'}
+                      </span>
                     </div>
                     <div className="text-[11px] text-slate-400">
                       RM/Kode: {acc.rm} • Telp: {acc.phone}
