@@ -170,14 +170,35 @@ const loadSchedulesForRm = (rm, isDemoUser) => {
 
 const getTodayDateKey = () => new Date().toLocaleDateString('en-CA');
 
+const isScheduleItemTaken = (item) =>
+  Boolean(
+    item &&
+      (item.taken === true ||
+        item.isTaken === true ||
+        item.completed === true ||
+        item.status === 'taken' || item.status === 'diminum' ||
+        item.status === 'completed' ||
+        item.status === 'done')
+  );
+
 const normalizeDailySchedules = (list) => {
   if (!Array.isArray(list)) return [];
   const today = getTodayDateKey();
   return list.map((item) => {
-    const isTakenToday = Boolean(item.taken && item.lastTakenDate === today);
+    const takenFlag = isScheduleItemTaken(item);
+    const isTakenToday = Boolean(takenFlag && item.lastTakenDate === today);
+    const nextStatus =
+      item.status === 'taken' || item.status === 'diminum' || item.status === 'completed' || item.status === 'done'
+        ? isTakenToday
+          ? 'taken'
+          : 'pending'
+        : item.status;
     return {
       ...item,
       taken: isTakenToday,
+      ...(typeof item.isTaken !== 'undefined' ? { isTaken: isTakenToday } : {}),
+      ...(typeof item.completed !== 'undefined' ? { completed: isTakenToday } : {}),
+      ...(typeof nextStatus !== 'undefined' ? { status: nextStatus } : {}),
       lastTakenDate: isTakenToday ? today : null,
     };
   });
@@ -279,13 +300,33 @@ export default function App() {
 
       return nextList.map((item) => {
         const prevItem = Array.isArray(prev) ? prev.find((p) => p.id === item.id) : null;
-        if (isUserAction && item.taken && (!prevItem || !prevItem.taken)) {
-          return { ...item, taken: true, lastTakenDate: today };
+        const wasTaken = isScheduleItemTaken(prevItem);
+        const nowTaken = isScheduleItemTaken(item);
+
+        if (isUserAction && nowTaken && !wasTaken) {
+          return {
+            ...item,
+            taken: true,
+            ...(typeof item.isTaken !== 'undefined' ? { isTaken: true } : {}),
+            ...(typeof item.completed !== 'undefined' ? { completed: true } : {}),
+            lastTakenDate: today,
+          };
         }
-        const isTakenToday = Boolean(item.taken && item.lastTakenDate === today);
+
+        const isTakenToday = Boolean(nowTaken && item.lastTakenDate === today);
+        const nextStatus =
+          item.status === 'taken' || item.status === 'diminum' || item.status === 'completed' || item.status === 'done'
+            ? isTakenToday
+              ? 'taken'
+              : 'pending'
+            : item.status;
+
         return {
           ...item,
           taken: isTakenToday,
+          ...(typeof item.isTaken !== 'undefined' ? { isTaken: isTakenToday } : {}),
+          ...(typeof item.completed !== 'undefined' ? { completed: isTakenToday } : {}),
+          ...(typeof nextStatus !== 'undefined' ? { status: nextStatus } : {}),
           lastTakenDate: isTakenToday ? today : null,
         };
       });

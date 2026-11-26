@@ -1853,8 +1853,10 @@ export default function Dashboard({
                         {(() => {
                           const todayObj = new Date();
                           const todayKey = todayObj.toLocaleDateString('en-CA');
-                          const rmKey = (profile?.rm || 'DEFAULT').toUpperCase();
-                          const historyStorageKey = `respicare-compliance-history-${rmKey}`;
+                          const rmKey = String(
+                            profile?.rm || patientProfile?.rm || user?.rm || 'DEFAULT'
+                          ).toUpperCase();
+                          const historyStorageKey = `respicare-compliance-history-v2-${rmKey}`;
 
                           let storedHistory = {};
                           try {
@@ -1863,13 +1865,23 @@ export default function Dashboard({
                             storedHistory = {};
                           }
 
+                          const isTakenCheck = (s) =>
+                            Boolean(
+                              s &&
+                                (s.taken === true ||
+                                  s.isTaken === true ||
+                                  s.completed === true ||
+                                  s.status === 'taken' || s.status === 'diminum' ||
+                                  s.status === 'completed' ||
+                                  s.status === 'done')
+                            );
+
                           const activeList = Array.isArray(schedules) ? schedules : [];
                           const totalToday = activeList.length;
-                          const takenToday = activeList.filter((s) => Boolean(s.taken)).length;
+                          const takenToday = activeList.filter((s) => isTakenCheck(s)).length;
                           const missedToday = Math.max(0, totalToday - takenToday);
                           const pctToday = totalToday > 0 ? Math.round((takenToday / totalToday) * 100) : 0;
 
-                          // Simpan snapshot hari ini
                           storedHistory[todayKey] = {
                             total: totalToday,
                             taken: takenToday,
@@ -1877,25 +1889,10 @@ export default function Dashboard({
                             percentage: pctToday,
                           };
 
-                          // Jika ada riwayat stok terpakai / streak dari kemarin namun belum tercatat tanggalnya, simpan untuk kemarin
-                          const yesterdayObj = new Date(todayObj);
-                          yesterdayObj.setDate(todayObj.getDate() - 1);
-                          const yesterdayKey = yesterdayObj.toLocaleDateString('en-CA');
-                          const hasUsedStock = activeList.some((s) => Number(s.stock) < 40);
-                          if (!storedHistory[yesterdayKey] && (hasUsedStock || takenToday === 0) && totalToday > 0) {
-                            storedHistory[yesterdayKey] = {
-                              total: totalToday,
-                              taken: totalToday,
-                              missed: 0,
-                              percentage: 100,
-                            };
-                          }
-
                           try {
                             localStorage.setItem(historyStorageKey, JSON.stringify(storedHistory));
                           } catch {}
 
-                          // Susun daftar 7 hari terakhir beserta seluruh tanggal yang tercatat
                           const allKeysSet = new Set(Object.keys(storedHistory));
                           for (let d = 0; d < 7; d++) {
                             const dt = new Date(todayObj);
