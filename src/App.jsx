@@ -174,12 +174,11 @@ const normalizeDailySchedules = (list) => {
   if (!Array.isArray(list)) return [];
   const today = getTodayDateKey();
   return list.map((item) => {
-    const takenDate = item.lastTakenDate || (item.taken ? today : null);
-    const isTakenToday = Boolean(item.taken && takenDate === today);
+    const isTakenToday = Boolean(item.taken && item.lastTakenDate === today);
     return {
       ...item,
       taken: isTakenToday,
-      lastTakenDate: isTakenToday ? takenDate : null,
+      lastTakenDate: isTakenToday ? today : null,
     };
   });
 };
@@ -240,7 +239,48 @@ export default function App() {
   });
 
   // State Jadwal Obat (KOSONG [] secara default untuk akun baru)
-  const [schedules, setSchedules] = useState([]);
+  const [schedules, setSchedulesRaw] = useState([]);
+
+  const setSchedules = React.useCallback((updater) => {
+    setSchedulesRaw((prev) => {
+      const nextList = typeof updater === 'function' ? updater(prev) : updater;
+      if (!Array.isArray(nextList)) return nextList;
+      const today = getTodayDateKey();
+      const isUserAction = typeof updater === 'function';
+
+      return nextList.map((item) => {
+        const prevItem = Array.isArray(prev) ? prev.find((p) => p.id === item.id) : null;
+        if (isUserAction && item.taken && (!prevItem || !prevItem.taken)) {
+          return { ...item, taken: true, lastTakenDate: today };
+        }
+        const isTakenToday = Boolean(item.taken && item.lastTakenDate === today);
+        return {
+          ...item,
+          taken: isTakenToday,
+          lastTakenDate: isTakenToday ? today : null,
+        };
+      });
+    });
+  }, []);
+
+  const activeDateRef = React.useRef(getTodayDateKey());
+  React.useEffect(() => {
+    const checkDateChange = () => {
+      const currentDay = getTodayDateKey();
+      if (currentDay !== activeDateRef.current) {
+        activeDateRef.current = currentDay;
+        setSchedules((prev) => normalizeDailySchedules(prev));
+      }
+    };
+    const intervalId = setInterval(checkDateChange, 30000);
+    window.addEventListener('focus', checkDateChange);
+    document.addEventListener('visibilitychange', checkDateChange);
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('focus', checkDateChange);
+      document.removeEventListener('visibilitychange', checkDateChange);
+    };
+  }, [setSchedules]);
   const [isDemo, setIsDemo] = useState(false);
 
   // Toast Notification State
