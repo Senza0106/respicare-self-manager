@@ -2057,27 +2057,7 @@ export default function Dashboard({
                         Informasi Pasien
                       </h3>
                     </div>
-                    {userRole === 'pasien' ? (
-                      <span
-                        className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
-                          isDark
-                            ? 'bg-amber-400/10 text-amber-300 border-amber-400/25'
-                            : 'bg-amber-100 text-amber-900 border-amber-300'
-                        }`}
-                      >
-                        Read-Only (Pasien)
-                      </span>
-                    ) : (
-                      <span
-                        className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
-                          isDark
-                            ? 'bg-emerald-400/10 text-emerald-400 border-emerald-400/25'
-                            : 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                        }`}
-                      >
-                        Mode Edit (Pendamping)
-                      </span>
-                    )}
+                    
                   </div>
 
                   <div>
