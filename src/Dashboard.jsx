@@ -643,7 +643,7 @@ export default function Dashboard({
               />
               <span className="truncate">
                 Sesi Aktif:{' '}
-                {userRole === 'pasien' ? 'Pasien' : 'Pendamping Keluarga'}
+                {userRole === 'pasien' ? 'Pasien' : 'Pendamping'}
               </span>
             </div>
           </div>
@@ -912,7 +912,7 @@ export default function Dashboard({
                         type="button"
                         onClick={() =>
                           handleStartCall(
-                            profile.emergencyContact || 'Pendamping Keluarga',
+                            profile.emergencyContact || 'Pendamping',
                             profile.guardianPhone || '081234567890',
                             'Menghubungi Pendamping untuk Konsultasi Terapi'
                           )
@@ -1052,7 +1052,7 @@ export default function Dashboard({
                             isDark ? 'text-slate-400' : 'text-slate-600 font-medium'
                           }`}
                         >
-                          Belum ada jadwal obat yang diatur. Menunggu Pendamping Keluarga
+                          Belum ada jadwal obat yang diatur. Menunggu Pendamping
                           menambahkan jadwal terapi Anda.
                         </p>
                       </div>
@@ -1162,7 +1162,7 @@ export default function Dashboard({
               )}
 
               {/* -------------------------------------------------- */}
-              {/* KONDISIONAL ROLE: PENDAMPING KELUARGA (FULL AKSES) */}
+              {/* KONDISIONAL ROLE: Pendamping (FULL AKSES) */}
               {/* -------------------------------------------------- */}
               {userRole === 'pendamping' && (
                 <>
@@ -1171,7 +1171,7 @@ export default function Dashboard({
                     <div>
                       <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-[#e0f7fa] text-xs font-bold mb-3 border border-white/20">
                         <Users className="w-3.5 h-3.5" />
-                        <span>PORTAL PENDAMPING KELUARGA</span>
+                        <span>PORTAL Pendamping</span>
                       </div>
                       <h2 className="text-2xl font-bold tracking-tight">
                         Pendamping: {currentUser?.name || 'Keluarga'} • Memantau Pasien:{' '}
@@ -1841,7 +1841,7 @@ export default function Dashboard({
                   <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr className="border-b border-slate-800/80 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                        <tr className={`border-b text-[11px] font-bold uppercase tracking-wider ${(!isDark) ? 'border-slate-200 text-slate-600' : 'border-slate-800/80 text-slate-400'}`}>
                           <th className="py-3.5 px-4">Tanggal</th>
                           <th className="py-3.5 px-4">Total Jadwal</th>
                           <th className="py-3.5 px-4">Tepat Waktu</th>
@@ -1849,7 +1849,7 @@ export default function Dashboard({
                           <th className="py-3.5 px-4">Persentase</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-800/60 text-xs sm:text-sm">
+                      <tbody className={`divide-y text-xs sm:text-sm ${(!isDark) ? 'divide-slate-200' : 'divide-slate-800/60'}`}>
                         {(() => {
                           const todayObj = new Date();
                           const todayKey = todayObj.toLocaleDateString('en-CA');
@@ -1948,21 +1948,21 @@ export default function Dashboard({
                             };
                             const isTodayRow = dateKey === todayKey;
                             return (
-                              <tr key={dateKey} className="hover:bg-slate-800/30 transition-colors">
-                                <td className="py-3.5 px-4 font-semibold text-white">
+                              <tr key={dateKey} className={`transition-colors ${(!isDark) ? 'hover:bg-slate-50' : 'hover:bg-slate-800/30'}`}>
+                                <td className={`py-3.5 px-4 font-bold ${(!isDark) ? 'text-slate-900' : 'text-white'}`}>
                                   <div className="flex flex-wrap items-center gap-2">
                                     <span>{formatIndoDate(dateKey)}</span>
                                     {isTodayRow && (
-                                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${(!isDark) ? 'bg-cyan-100 text-cyan-800 border-cyan-300' : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'}`}>
                                         Hari Ini
                                       </span>
                                     )}
                                   </div>
                                 </td>
-                                <td className="py-3.5 px-4 text-slate-300">{rec.total} jadwal</td>
-                                <td className="py-3.5 px-4 font-bold text-emerald-400">{rec.taken}</td>
-                                <td className="py-3.5 px-4 font-bold text-amber-400">{rec.missed}</td>
-                                <td className="py-3.5 px-4 font-extrabold text-cyan-400">{rec.percentage}%</td>
+                                <td className={`py-3.5 px-4 font-medium ${(!isDark) ? 'text-slate-700' : 'text-slate-300'}`}>{rec.total} jadwal</td>
+                                <td className={`py-3.5 px-4 font-bold ${(!isDark) ? 'text-emerald-600' : 'text-emerald-400'}`}>{rec.taken}</td>
+                                <td className={`py-3.5 px-4 font-bold ${(!isDark) ? 'text-amber-600' : 'text-amber-400'}`}>{rec.missed}</td>
+                                <td className={`py-3.5 px-4 font-extrabold ${(!isDark) ? 'text-cyan-700' : 'text-cyan-400'}`}>{rec.percentage}%</td>
                               </tr>
                             );
                           });
@@ -2183,7 +2183,7 @@ export default function Dashboard({
                         <ShieldCheck className="w-4 h-4 text-[#4dd0e1] shrink-0" />
                         <span>
                           Data profil Anda dikunci untuk keamanan rekam medis. Perubahan data dapat
-                          dilakukan melalui portal Pendamping Keluarga.
+                          dilakukan melalui portal Pendamping.
                         </span>
                       </div>
                     ) : (

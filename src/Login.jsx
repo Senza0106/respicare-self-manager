@@ -230,7 +230,7 @@ export default function Login({
       syncAllLocalAccountsToSupabase();
 
       setRegisterSuccess(
-        `✓ Akun Pasien berhasil dibuat! No. RM Anda: ${generatedRm}. Salin dan berikan kode ini kepada Pendamping Keluarga Anda.`
+        `✓ Akun Pasien berhasil dibuat! No. RM Anda: ${generatedRm}. Salin dan berikan kode ini kepada Pendamping Anda.`
       );
       setLoginForm((prev) => ({ ...prev, email: email.trim().toLowerCase() }));
 
@@ -240,7 +240,7 @@ export default function Login({
         setRegisterSuccess('');
       }, 3500);
     } else {
-      // 2. VALIDASI REGISTER PENDAMPING KELUARGA (LENGKAP + DATA MEDIS PASIEN)
+      // 2. VALIDASI REGISTER Pendamping (LENGKAP + DATA MEDIS PASIEN)
       const {
         name,
         phone,
@@ -471,7 +471,7 @@ export default function Login({
     if (!isDemoUser && registeredUser) {
       if (loginRole === 'pasien' && registeredUser.role === 'pendamping') {
         setPairingError(
-          'Akun ini terdaftar sebagai Pendamping Keluarga. Silakan beralih ke tab Pendamping di atas.'
+          'Akun ini terdaftar sebagai Pendamping. Silakan beralih ke tab Pendamping di atas.'
         );
         return;
       }
@@ -483,7 +483,7 @@ export default function Login({
       }
     }
 
-    // Login sebagai PENDAMPING KELUARGA
+    // Login sebagai Pendamping
     if (loginRole === 'pendamping') {
       const code = pairingCode.trim().toUpperCase();
       if (!code) {
@@ -509,7 +509,7 @@ export default function Login({
       const resolvedPatient = matchDemo ? demoPatient : pairedPatientFromStorage;
       const pendampingUser = isDemoUser
         ? {
-            name: 'Pendamping Keluarga Demo',
+            name: 'Pendamping Demo',
             email: demoEmail,
             role: 'pendamping',
             phone: '081234567890',
@@ -587,7 +587,7 @@ export default function Login({
             }`}
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-            <span>← Kembali ke Beranda</span>
+            <span>Kembali ke Beranda</span>
           </button>
 
           <button
@@ -802,7 +802,7 @@ export default function Login({
                 >
                   {registerRole === 'pasien'
                     ? 'Pendaftaran Pasien Mandiri (Mudah & Cepat)'
-                    : 'Pendaftaran Pendamping Keluarga & Data Pasien'}
+                    : 'Pendaftaran Pendamping & Data Pasien'}
                 </p>
               </div>
 
@@ -976,7 +976,7 @@ export default function Login({
                         isDark ? 'text-slate-400' : 'text-slate-600 font-medium'
                       }`}
                     >
-                      💡 Simpan dan berikan kode ini kepada Pendamping Keluarga Anda agar mereka
+                      💡 Simpan dan berikan kode ini kepada Pendamping Anda agar mereka
                       dapat menghubungkan akun dan mengatur jadwal obat Anda.
                     </p>
                   </div>
@@ -1005,7 +1005,7 @@ export default function Login({
                 </form>
               ) : (
                 /* ==================================================== */
-                /* ALUR 2: DAFTAR PENDAMPING KELUARGA (LENGKAP + MEDIS) */
+                /* ALUR 2: DAFTAR Pendamping (LENGKAP + MEDIS) */
                 /* ==================================================== */
                 <form autoComplete="off" onSubmit={handleRegisterSubmit} className="space-y-3.5">
                   <div className="space-y-3">
@@ -1014,7 +1014,7 @@ export default function Login({
                         isDark ? 'text-[#4dd0e1]' : 'text-[#0d47a1]'
                       }`}
                     >
-                      1. Data Diri Pendamping Keluarga
+                      1. Data Diri Pendamping
                     </p>
 
                     <div>
@@ -1624,8 +1624,7 @@ export default function Login({
                     <span>
                       MASUK SEBAGAI{' '}
                       {loginRole === 'pasien'
-                        ? 'PASIEN'
-                        : 'PENDAMPING KELUARGA'}
+                        ? 'PASIEN' : 'PENDAMPING'}
                     </span>
                     <ArrowRight className="w-5 h-5" />
                   </button>

@@ -45,3 +45,18 @@
 .animate-marquee-right:hover {
   animation-play-state: paused;
 }
+
+/* respicare-time-icon-fix: tampilkan 1 simbol jam saja pada kolom Waktu Minum */
+input[type="time"] {
+  position: relative;
+}
+input[type="time"]::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 3rem;
+  height: 100%;
+  cursor: pointer;
+  z-index: 10;
+}

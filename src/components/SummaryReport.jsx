@@ -204,7 +204,7 @@ export default function SummaryReport({
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Kontak Pendamping Keluarga
+                  Kontak Pendamping
                 </label>
                 <input
                   type="text"
@@ -299,7 +299,7 @@ export default function SummaryReport({
             <strong className="text-slate-900">{patientProfile.allergies || '-'}</strong>
           </div>
           <div>
-            <span className="text-slate-500 block">Pendamping Keluarga:</span>
+            <span className="text-slate-500 block">Pendamping:</span>
             <strong className="text-slate-900">{patientProfile.emergencyContact || '-'}</strong>
           </div>
         </div>
