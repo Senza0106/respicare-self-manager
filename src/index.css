@@ -60,3 +60,45 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
   z-index: 10;
 }
+/* respicare-light-table-contrast: pastikan seluruh tulisan tabel laporan terbaca kontras saat Mode Terang (.bg-white) */
+.bg-white table thead tr,
+.bg-white table thead th {
+  color: #334155 !important;
+  border-color: #cbd5e1 !important;
+}
+.bg-white table tbody {
+  border-color: #e2e8f0 !important;
+}
+.bg-white table tbody tr {
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+.bg-white table tbody tr:hover {
+  background-color: #f8fafc !important;
+}
+.bg-white table tbody td:first-child,
+.bg-white table tbody td.text-white,
+.bg-white table tbody td span.text-white {
+  color: #0f172a !important;
+  font-weight: 700 !important;
+}
+.bg-white table tbody td.text-slate-300,
+.bg-white table tbody td.text-slate-200,
+.bg-white table tbody td.text-slate-400 {
+  color: #334155 !important;
+  font-weight: 500 !important;
+}
+.bg-white table tbody td span.bg-cyan-500\/20,
+.bg-white table tbody td span.text-cyan-300 {
+  background-color: #cffafe !important;
+  color: #0e7490 !important;
+  border-color: #67e8f9 !important;
+}
+.bg-white table tbody td.text-emerald-400 {
+  color: #059669 !important;
+}
+.bg-white table tbody td.text-amber-400 {
+  color: #d97706 !important;
+}
+.bg-white table tbody td.text-cyan-400 {
+  color: #0284c7 !important;
+}

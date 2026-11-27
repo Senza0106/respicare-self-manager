@@ -1,3 +1,4 @@
+import { exportReportToExcel, exportReportToPDF } from './utils/exportReport';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Calendar,
@@ -1801,13 +1802,33 @@ export default function Dashboard({
               </div>
 
               <div className={`rounded-2xl p-6 ${cardBg}`}>
-                <h3
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+  <h3
                   className={`text-lg font-bold mb-4 ${
                     isDark ? 'text-white' : 'text-[#051226]'
                   }`}
                 >
                   Riwayat Kepatuhan Terapi Harian
                 </h3>
+  <div className="flex flex-wrap items-center gap-2.5">
+    <button
+      type="button"
+      onClick={() => exportReportToExcel()}
+      className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition-all cursor-pointer"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg>
+      <span>Ekspor Excel (.xlsx)</span>
+    </button>
+    <button
+      type="button"
+      onClick={() => exportReportToPDF()}
+      className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white shadow-sm transition-all cursor-pointer"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      <span>Ekspor PDF (.pdf)</span>
+    </button>
+  </div>
+</div>
 
                 {historyData.length === 0 ? (
                   /* EMPTY STATE LAPORAN */
